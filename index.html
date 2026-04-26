@@ -28,11 +28,16 @@
     .album-btn { background-color: #fffaf0; color: #f29900; border: 2px dashed #ffe0b2; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 50px; margin-bottom: 15px; }
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
+    
+    /* AI 預覽區優化 */
     #aiPreviewArea { margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; display: none; }
     .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
-    .preview-item input { padding: 6px; margin-bottom: 5px; font-size: 13px; width: 100%; }
-    .ai-summary-row { background: #fff4e5; padding: 12px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 1px solid #ffe0b2; }
-    .total-input-box { font-size: 22px; font-weight: bold; color: #d44a00; border: none; background: transparent; padding: 0; margin: 0; text-align: right; width: 120px; }
+    .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; }
+    
+    /* 總額修正區：更明顯的輸入框 */
+    .ai-summary-row { background: #fff4e5; padding: 15px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 2px solid #f29900; }
+    .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 140px; text-align: right; }
+    
     .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
     .detail-info { flex: 1; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
@@ -93,19 +98,31 @@
         <label for="pic2" class="upload-btn" id="lbl2">拍照片</label><input type="file" id="pic2" accept="image/*" capture="environment" onchange="previewImg(2)">
         <label for="pic3" class="upload-btn" id="lbl3">拍照片</label><input type="file" id="pic3" accept="image/*" capture="environment" onchange="previewImg(3)">
       </div>
-      <label for="album" class="album-btn" id="albumLbl">🖼️ 從相簿多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
+      <label for="album" class="album-btn" id="albumLbl">🖼️ 多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
       <button id="aiBtn" class="btn" onclick="submitAI()">AI 智慧解析 ✨</button>
       <div id="aiStatus" style="margin-top:10px; font-size:14px; color:#555; text-align:center;"></div>
+      
       <div id="aiPreviewArea">
         <div class="section-title">🔍 請確認辨識結果</div>
+        
+        <div style="margin-bottom:15px; background:#f0f7ff; padding:10px; border-radius:10px; font-size:14px;">
+           <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+             <input type="checkbox" id="saveSummaryOnly" style="width:20px; height:20px; margin-bottom:0;"> 
+             <b>僅記錄總額 (不列細項)</b>
+           </label>
+           <p style="margin:5px 0 0 28px; font-size:12px; color:#666;">勾選後，將僅產生一筆「收據總計」紀錄。</p>
+        </div>
+
         <div id="aiItemList"></div>
+        
         <div class="ai-summary-row">
-          <span style="font-weight:bold; color:#f29900;">實付總額 (可修正)：</span>
+          <span style="font-weight:bold; color:#f29900;">💰 實付總額 (可手動修正)：</span>
           <div style="display:flex; align-items:center; gap:5px;">
             <input type="number" id="aiTotalInput" class="total-input-box">
             <span id="aiCurrencyLabel" style="font-weight:bold; color:#d44a00;"></span>
           </div>
         </div>
+
         <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認無誤，儲存紀錄 ✅</button>
       </div>
     </div>
@@ -207,20 +224,45 @@
       const btn = document.getElementById('saveAiBtn');
       const manualTotal = Number(document.getElementById('aiTotalInput').value);
       const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
+      const isSummaryOnly = document.getElementById('saveSummaryOnly').checked;
+      
+      const currency = document.getElementById('countryMode').value;
+      const rate = Number(document.getElementById('currentRate').value);
+      const trip = document.getElementById('tripName').value;
+
       btn.disabled = true; btn.innerText = "儲存中...";
+      
       try {
-        let finalRecords = [...pendingAiRecords];
-        if (Math.abs(manualTotal - calculatedTotal) > 0.01) {
-          finalRecords.push({ chineseName: "收據差額調整", localAmount: manualTotal - calculatedTotal, mainCategory: "其他", storeName: "系統補正", receiptDate: pendingAiRecords[0]?.receiptDate || "" });
+        let finalItemsToSave = [];
+
+        if (isSummaryOnly) {
+          // 💡 僅記錄總額邏輯
+          finalItemsToSave.push({
+            chineseName: "收據總計 (" + (pendingAiRecords[0]?.storeName || "未辨識商店") + ")",
+            localAmount: manualTotal,
+            mainCategory: pendingAiRecords[0]?.mainCategory || "其他",
+            storeName: pendingAiRecords[0]?.storeName || "AI辨識",
+            receiptDate: pendingAiRecords[0]?.receiptDate || ""
+          });
+        } else {
+          // 💡 列出細項邏輯
+          finalItemsToSave = [...pendingAiRecords];
+          if (Math.abs(manualTotal - calculatedTotal) > 0.01) {
+            finalItemsToSave.push({ chineseName: "收據差額調整", localAmount: manualTotal - calculatedTotal, mainCategory: "其他", storeName: "系統補正", receiptDate: pendingAiRecords[0]?.receiptDate || "" });
+          }
         }
-        const records = finalRecords.map(item => ({
-          datetime: item.receiptDate || new Date().toISOString(), item: item.chineseName, store: item.storeName || "AI辨識", amount: item.localAmount,
-          currency: document.getElementById('countryMode').value, category: item.mainCategory || "其他",
-          rate: Number(document.getElementById('currentRate').value), trip: document.getElementById('tripName').value, source: "AI"
+
+        const records = finalItemsToSave.map(item => ({
+          datetime: item.receiptDate || new Date().toISOString(),
+          item: item.chineseName, store: item.storeName || "AI辨識", amount: item.localAmount,
+          currency: currency, category: item.mainCategory || "其他",
+          rate: rate, trip: trip, source: "AI"
         }));
+
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
-        document.getElementById('aiPreviewArea').style.display = 'none'; alert("儲存成功！"); resetForm();
+        document.getElementById('aiPreviewArea').style.display = 'none';
+        alert("儲存成功！"); resetForm();
       } catch (err) { alert(err.message); }
       finally { btn.disabled = false; btn.innerText = "確認無誤，儲存紀錄 ✅"; }
     }
@@ -271,7 +313,8 @@
           img.onload = () => {
             const canvas = document.createElement('canvas'); let w = img.width, h = img.height, max = 1000;
             if (w > h) { if (w > max) { h *= max/w; w = max; } } else { if (h > max) { w *= max/h; h = max; } }
-            canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
           };
         };
       });
