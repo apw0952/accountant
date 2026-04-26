@@ -18,23 +18,32 @@
     .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
+    
     .quick-entry-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; white-space: nowrap; }
     .quick-entry-row input, .quick-entry-row select { width: 140px; flex-shrink: 0; margin-bottom: 0; }
+    
     .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
     .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
+    
     .camera-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
     .upload-btn { background: #f0f7ff; color: #1a73e8; border: 2px dashed #adc6ff; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80px; font-size: 12px; cursor: pointer; position: relative; background-size: cover; background-position: center; overflow: hidden;}
     .album-btn { background-color: #fffaf0; color: #f29900; border: 2px dashed #ffe0b2; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 50px; margin-bottom: 15px; }
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
+    
     #aiPreviewArea { margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; display: none; }
     .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
     .preview-item input { padding: 6px; margin-bottom: 5px; font-size: 13px; width: 100%; }
+    
+    /* 💡 新增樣式：總計行 */
+    .ai-summary-row { background: #fff4e5; padding: 12px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #ffe0b2; }
+
     .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
     .detail-info { flex: 1; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
     .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; }
+
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     #chartContainer { position: relative; height: 250px; width: 100%; }
@@ -110,6 +119,12 @@
       <div id="aiPreviewArea">
         <div class="section-title">🔍 請確認辨識結果</div>
         <div id="aiItemList"></div>
+        
+        <div class="ai-summary-row">
+          <span style="font-weight:bold; color:#f29900;">辨識總計：</span>
+          <span style="font-size:18px; font-weight:bold; color:#d44a00;" id="aiTotalDisplay">0</span>
+        </div>
+
         <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認無誤，儲存紀錄 ✅</button>
       </div>
     </div>
@@ -152,7 +167,6 @@
       if(tabId === 'report') refreshAll();
     }
 
-    // 🔴 關鍵修正：移除 headers 以避免 iOS/CORS 錯誤
     async function apiPost(payload) {
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -194,7 +208,7 @@
         if (!data.success) throw new Error(data.message);
         pendingAiRecords = data.items;
         renderAIPreview();
-        status.innerHTML = "💡 請確認下方結果。";
+        status.innerHTML = "💡 解析完成，請核對收據總額。";
       } catch (err) { status.innerHTML = `<span style="color:red;">❌ ${err.message}</span>`; }
       finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
     }
@@ -204,8 +218,10 @@
       document.getElementById('aiPreviewArea').style.display = 'block';
       pendingAiRecords.forEach((item, index) => {
         const div = document.createElement('div'); div.className = 'preview-item';
+        // 💡 這裡將原本的 onchange 改成調用 updateAiItemAmt，讓總計同步更新
         div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${index}].chineseName=this.value">
-          <div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="pendingAiRecords[${index}].localAmount=Number(this.value)">
+          <div style="display:flex; gap:5px;">
+          <input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${index}, this.value)">
           <select onchange="pendingAiRecords[${index}].mainCategory=this.value">
             <option value="食" ${item.mainCategory==='食'?'selected':''}>食</option>
             <option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option>
@@ -216,6 +232,21 @@
           </select></div>`;
         container.appendChild(div);
       });
+      // 初始計算一次總額
+      calculateAiTotal();
+    }
+
+    // 💡 新增：手動更新單筆金額時重新計算總額
+    function updateAiItemAmt(index, val) {
+      pendingAiRecords[index].localAmount = Number(val);
+      calculateAiTotal();
+    }
+
+    // 💡 新增：計算預覽區所有項目的總額
+    function calculateAiTotal() {
+      const total = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
+      const currency = document.getElementById('countryMode').value;
+      document.getElementById('aiTotalDisplay').innerText = total.toLocaleString() + " " + currency;
     }
 
     async function saveAIResults() {
@@ -302,7 +333,7 @@
           img.onload = () => {
             const canvas = document.createElement('canvas');
             let w = img.width, h = img.height, max = 1000;
-            if (w > max || h > max) { if (w > h) { h *= max/w; w = max; } else { w *= max/h; h = max; } }
+            if (w > h) { if (w > max) { h *= max/w; w = max; } } else { if (h > max) { w *= max/h; h = max; } }
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
             resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
