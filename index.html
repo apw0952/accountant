@@ -18,30 +18,23 @@
     .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
-    
     .quick-entry-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; white-space: nowrap; }
     .quick-entry-row input, .quick-entry-row select { width: 140px; flex-shrink: 0; margin-bottom: 0; }
-    
     .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
     .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
-    .btn-accent { background: var(--accent); }
-    
     .camera-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
     .upload-btn { background: #f0f7ff; color: #1a73e8; border: 2px dashed #adc6ff; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80px; font-size: 12px; cursor: pointer; position: relative; background-size: cover; background-position: center; overflow: hidden;}
     .album-btn { background-color: #fffaf0; color: #f29900; border: 2px dashed #ffe0b2; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 50px; margin-bottom: 15px; }
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
-    
     #aiPreviewArea { margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; display: none; }
     .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
     .preview-item input { padding: 6px; margin-bottom: 5px; font-size: 13px; width: 100%; }
-
     .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
     .detail-info { flex: 1; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
     .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; }
-
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     #chartContainer { position: relative; height: 250px; width: 100%; }
@@ -61,7 +54,6 @@
     <div class="card">
       <div class="section-title">✈️ 旅程與匯率設定</div>
       <input type="text" id="tripName" placeholder="旅程名稱 (例如: 2026日本行)" value="我的旅行">
-      
       <div style="display: flex; gap: 10px; align-items: center;">
         <div style="flex: 2;">
           <select id="countryMode" onchange="handleCountryChange()" style="margin-bottom:0;">
@@ -73,12 +65,9 @@
           </select>
         </div>
         <div style="flex: 1; position: relative;">
-          <input type="number" id="currentRate" step="0.0001" placeholder="匯率" style="margin-bottom:0; padding-right: 30px;">
-          <span style="position: absolute; right: 10px; top: 12px; font-size: 10px; color: #999;">TWD</span>
+          <input type="number" id="currentRate" step="0.0001" placeholder="匯率" style="margin-bottom:0;">
         </div>
-      </div>
-      <div style="text-align: right; margin-top: 5px;">
-        <button onclick="fetchLiveRate()" style="background:none; border:none; color:var(--accent); font-size:12px; cursor:pointer;">🔄 抓取即時匯率</button>
+        <button onclick="fetchLiveRate()" style="background:none; border:none; color:var(--accent); font-size:16px; cursor:pointer;">🔄</button>
       </div>
     </div>
 
@@ -92,12 +81,10 @@
           <option value="衣">👕 衣</option>
           <option value="住">🏠 住</option>
           <option value="行">🚗 行</option>
-          <option value="育">📚 育</option>
           <option value="樂">🎡 樂</option>
           <option value="其他" selected>❓ 其他</option>
         </select>
         <input type="text" id="mItem" placeholder="品項">
-        <input type="text" id="mStore" placeholder="商店">
         <input type="number" id="mAmt" placeholder="金額">
       </div>
       <button id="manualBtn" class="btn btn-outline" style="margin-top:10px;" onclick="submitManual()">送出單筆記帳</button>
@@ -131,15 +118,14 @@
   <div id="report" class="tab-content">
     <div class="card">
       <div class="section-title">📅 選擇期間</div>
-      <select id="dateRange" onchange="toggleCustomDate(); fetchStats(); fetchRecent();">
+      <select id="dateRange" onchange="toggleCustomDate(); refreshAll();">
         <option value="today">本日</option>
         <option value="month" selected>本月</option>
         <option value="custom">自訂區間</option>
       </select>
       <div id="customDateContainer" style="display: none; gap: 5px; margin-top: 10px;">
-        <input type="date" id="startDate" onchange="fetchStats(); fetchRecent();">
-        <span style="line-height: 40px; color:#666;">至</span>
-        <input type="date" id="endDate" onchange="fetchStats(); fetchRecent();">
+        <input type="date" id="startDate" onchange="refreshAll()">
+        <input type="date" id="endDate" onchange="refreshAll()">
       </div>
       <div class="summary-box" style="margin-top:15px;">
         <div style="font-size:14px; color:#666;">期間總花費 (TWD)</div>
@@ -147,9 +133,8 @@
       </div>
       <div id="chartContainer"><canvas id="expenseChart"></canvas></div>
     </div>
-
     <div class="card">
-      <div class="section-title">📋 最近明細 (本趟旅程)</div>
+      <div class="section-title">📋 最近明細</div>
       <div id="recentList" style="max-height: 400px; overflow-y: auto;"></div>
     </div>
   </div>
@@ -163,234 +148,152 @@
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
       document.getElementById(tabId).classList.add('active');
-      if(event && event.target.classList.contains('tab-btn')) event.target.classList.add('active');
-      if(tabId === 'report') { fetchStats(); fetchRecent(); }
+      if(event && event.target.tagName === 'BUTTON') event.target.classList.add('active');
+      if(tabId === 'report') refreshAll();
     }
 
-    // 🔴 1. 強化 Fetch 函式 (Headers + CORS)
+    // 🔴 關鍵修正：移除 headers 以避免 iOS/CORS 錯誤
     async function apiPost(payload) {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+      if (!res.ok) throw new Error(`連線失敗: ${res.status}`);
       return await res.json();
     }
 
-    // 💰 匯率處理邏輯
     function handleCountryChange() {
-      const selected = document.getElementById('countryMode');
-      document.getElementById('currentRate').value = selected.options[selected.selectedIndex].dataset.rate;
+      const sel = document.getElementById('countryMode');
+      document.getElementById('currentRate').value = sel.options[sel.selectedIndex].dataset.rate;
       fetchLiveRate();
     }
 
     async function fetchLiveRate() {
-      const currency = document.getElementById('countryMode').value;
-      if (currency === "TWD") return;
+      const curr = document.getElementById('countryMode').value;
+      if (curr === "TWD") { document.getElementById('currentRate').value = 1; return; }
       try {
-        const res = await fetch(`https://open.er-api.com/v6/latest/${currency}`);
+        const res = await fetch(`https://open.er-api.com/v6/latest/${curr}`);
         const data = await res.json();
-        if (data.result === "success") {
-          document.getElementById('currentRate').value = data.rates.TWD.toFixed(4);
-        }
-      } catch (e) { console.log("匯率抓取失敗，使用內建預設值"); }
+        if (data.result === "success") document.getElementById('currentRate').value = data.rates.TWD.toFixed(4);
+      } catch (e) { console.log("使用預設匯率"); }
     }
 
-    // AI 解析第一步
     async function submitAI() {
       const btn = document.getElementById('aiBtn');
       const status = document.getElementById('aiStatus');
-      const pics = [1,2,3].map(n => document.getElementById('pic'+n).files[0]).filter(p => p);
-      const albumPics = Array.from(document.getElementById('album').files);
-      const allFiles = [...pics, ...albumPics];
-      
-      if(allFiles.length === 0) return alert("請先拍照或選取照片！");
-      
-      btn.disabled = true; btn.innerText = "⏳ 正在跨國解析中...";
-      document.getElementById('aiPreviewArea').style.display = 'none';
-
+      const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files];
+      if (allFiles.length === 0) return alert("請拍照片！");
+      btn.disabled = true; btn.innerText = "⏳ 解析中...";
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
         const data = await apiPost({
           action: "parse_ai",
           images: base64Imgs,
-          context: {
-            currency: document.getElementById('countryMode').value,
-            country: document.querySelector('#countryMode option:checked').text
-          }
+          context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text }
         });
-        
         if (!data.success) throw new Error(data.message);
         pendingAiRecords = data.items;
         renderAIPreview();
-        status.innerHTML = "💡 解析完成，請確認下方明細。";
-      } catch (err) {
-        status.innerHTML = `<span style="color:red;">❌ 錯誤：${err.message}</span>`;
-      } finally {
-        btn.disabled = false; btn.innerText = "AI 智慧解析 ✨";
-      }
+        status.innerHTML = "💡 請確認下方結果。";
+      } catch (err) { status.innerHTML = `<span style="color:red;">❌ ${err.message}</span>`; }
+      finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
     }
 
     function renderAIPreview() {
-      const container = document.getElementById('aiItemList');
-      container.innerHTML = "";
+      const container = document.getElementById('aiItemList'); container.innerHTML = "";
       document.getElementById('aiPreviewArea').style.display = 'block';
-
       pendingAiRecords.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.className = 'preview-item';
-        div.innerHTML = `
-          <input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${index}].chineseName=this.value" placeholder="品項">
-          <div style="display:flex; gap:5px;">
-            <input type="number" value="${item.localAmount}" onchange="pendingAiRecords[${index}].localAmount=Number(this.value)" placeholder="金額">
-            <select onchange="pendingAiRecords[${index}].mainCategory=this.value">
-              <option value="食" ${item.mainCategory==='食'?'selected':''}>🍕 食</option>
-              <option value="衣" ${item.mainCategory==='衣'?'selected':''}>👕 衣</option>
-              <option value="住" ${item.mainCategory==='住'?'selected':''}>🏠 住</option>
-              <option value="行" ${item.mainCategory==='行'?'selected':''}>🚗 行</option>
-              <option value="樂" ${item.mainCategory==='樂'?'selected':''}>🎡 樂</option>
-              <option value="其他" ${item.mainCategory==='其他'?'selected':''}>❓ 其他</option>
-            </select>
-          </div>
-          <input type="text" value="${item.storeName}" onchange="pendingAiRecords[${index}].storeName=this.value" placeholder="商店">
-        `;
+        const div = document.createElement('div'); div.className = 'preview-item';
+        div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${index}].chineseName=this.value">
+          <div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="pendingAiRecords[${index}].localAmount=Number(this.value)">
+          <select onchange="pendingAiRecords[${index}].mainCategory=this.value">
+            <option value="食" ${item.mainCategory==='食'?'selected':''}>食</option>
+            <option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option>
+            <option value="住" ${item.mainCategory==='住'?'selected':''}>住</option>
+            <option value="行" ${item.mainCategory==='行'?'selected':''}>行</option>
+            <option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option>
+            <option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option>
+          </select></div>`;
         container.appendChild(div);
       });
     }
 
-    // AI 儲存第二步
     async function saveAIResults() {
       const btn = document.getElementById('saveAiBtn');
-      btn.disabled = true; btn.innerText = "寫入中...";
-      
+      btn.disabled = true; btn.innerText = "儲存中...";
       try {
         const records = pendingAiRecords.map(item => ({
           datetime: item.receiptDate || new Date().toISOString(),
-          item: item.chineseName,
-          store: item.storeName,
-          amount: item.localAmount,
-          currency: document.getElementById('countryMode').value,
-          category: item.mainCategory,
-          rate: Number(document.getElementById('currentRate').value),
-          trip: document.getElementById('tripName').value,
-          source: "AI"
+          item: item.chineseName, store: item.storeName || "AI辨識", amount: item.localAmount,
+          currency: document.getElementById('countryMode').value, category: item.mainCategory || "其他",
+          rate: Number(document.getElementById('currentRate').value), trip: document.getElementById('tripName').value, source: "AI"
         }));
-
-        const data = await apiPost({ action: "add_records", records: records });
-        if(!data.success) throw new Error(data.message);
-
-        alert("✅ 儲存成功！");
+        const data = await apiPost({ action: "add_records", records });
+        if (!data.success) throw new Error(data.message);
         document.getElementById('aiPreviewArea').style.display = 'none';
-        resetForm();
-      } catch (err) { alert("儲存失敗：" + err.message); }
+        alert("儲存成功！"); resetForm();
+      } catch (err) { alert(err.message); }
       finally { btn.disabled = false; btn.innerText = "確認無誤，儲存紀錄 ✅"; }
     }
 
     async function submitManual() {
       const btn = document.getElementById('manualBtn');
-      const status = document.getElementById('manualStatus');
       const item = document.getElementById('mItem').value.trim();
       const amt = Number(document.getElementById('mAmt').value);
-
-      if(!item || !amt) return alert("請填寫品項與金額！");
+      if(!item || !amt) return alert("填寫品項與金額");
       btn.disabled = true;
-
       try {
-        const data = await apiPost({
-          action: "add_records",
-          records: [{
-            datetime: `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`,
-            item: item,
-            store: document.getElementById('mStore').value.trim() || "手動輸入",
-            amount: amt,
-            currency: document.getElementById('countryMode').value,
-            category: document.getElementById('mCategory').value,
-            rate: Number(document.getElementById('currentRate').value),
-            trip: document.getElementById('tripName').value,
-            source: "Manual"
-          }]
-        });
-        if(!data.success) throw new Error(data.message);
-        status.innerHTML = "<span style='color:green;'>✅ 成功！</span>";
+        await apiPost({ action: "add_records", records: [{
+          datetime: `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`,
+          item, amount: amt, store: "手動", currency: document.getElementById('countryMode').value,
+          category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value),
+          trip: document.getElementById('tripName').value, source: "Manual"
+        }]});
         document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = "";
-        setTimeout(() => status.innerHTML = "", 3000);
-      } catch (err) { status.innerHTML = `<span style='color:red;'>❌ ${err.message}</span>`; }
+        alert("成功！");
+      } catch (e) { alert("失敗"); }
       finally { btn.disabled = false; }
     }
 
+    async function refreshAll() { fetchStats(); fetchRecent(); }
     async function fetchStats() {
-      document.getElementById('totalSpent').innerText = "⏳";
       try {
-        const data = await apiPost({ 
-          action: "get_stats", 
-          range: document.getElementById('dateRange').value,
-          trip: document.getElementById('tripName').value,
-          startDate: document.getElementById('startDate').value, 
-          endDate: document.getElementById('endDate').value 
-        });
-        if(data.success) {
-          document.getElementById('totalSpent').innerText = `NT$ ${data.total}`;
-          renderChart(data.categories);
-        }
-      } catch (e) { document.getElementById('totalSpent').innerText = "Error"; }
+        const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip: document.getElementById('tripName').value, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
+        if (data.success) { document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; renderChart(data.categories); }
+      } catch (e) { }
     }
-
     async function fetchRecent() {
-      const list = document.getElementById('recentList');
       try {
         const data = await apiPost({ action: "get_recent", trip: document.getElementById('tripName').value });
-        if(!data.success || data.records.length === 0) {
-          list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">尚未有任何紀錄</div>';
-          return;
-        }
-        list.innerHTML = data.records.map(r => `
-          <div class="detail-item">
-            <div class="detail-info">
-              <div style="font-weight:bold; font-size:14px;">${r.item} <small>(${r.category})</small></div>
-              <div style="font-size:11px; color:#aaa;">${new Date(r.datetime).toLocaleString()}</div>
-            </div>
-            <div class="detail-amt">${r.amount} <small>${r.currency}</small></div>
-            <button onclick="confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
-          </div>
-        `).join('');
-      } catch (err) { list.innerHTML = '載入失敗'; }
+        const list = document.getElementById('recentList');
+        if (!data.success || data.records.length === 0) { list.innerHTML = "無紀錄"; return; }
+        list.innerHTML = data.records.map(r => `<div class="detail-item">
+          <div class="detail-info"><b>${r.item}</b><br><small>${new Date(r.datetime).toLocaleString()}</small></div>
+          <div class="detail-amt">${r.amount} ${r.currency}</div>
+          <button onclick="confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
+        </div>`).join('');
+      } catch (e) { }
     }
-
     async function confirmDelete(uuid) {
-      if(!confirm("確定要刪除這筆紀錄嗎？")) return;
+      if (!confirm("確定刪除？")) return;
       try {
-        const data = await apiPost({ action: "delete_record", uuid: uuid });
-        if(data.success) { fetchStats(); fetchRecent(); }
-      } catch (err) { alert("連線錯誤"); }
+        const data = await apiPost({ action: "delete_record", uuid });
+        if (data.success) refreshAll();
+      } catch (e) { alert("失敗"); }
     }
 
-    // 🔴 4. 補齊色票 (7 個顏色)
     function renderChart(catData) {
       const ctx = document.getElementById('expenseChart').getContext('2d');
-      if(chartInstance) chartInstance.destroy();
+      if (chartInstance) chartInstance.destroy();
       chartInstance = new Chart(ctx, {
         type: 'doughnut',
-        data: {
-          labels: Object.keys(catData),
-          datasets: [{
-            data: Object.values(catData),
-            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a']
-          }]
-        },
+        data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a'] }] },
         options: { responsive: true, maintainAspectRatio: false }
       });
     }
 
-    function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
-    function previewImg(n) {
-      const file = document.getElementById('pic'+n).files[0];
-      if (file) {
-        document.getElementById('lbl'+n).style.backgroundImage = `url('${URL.createObjectURL(file)}')`;
-        document.getElementById('lbl'+n).innerHTML = `<div class="overlay">✅</div>`;
-      }
-    }
-    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選取 ${document.getElementById('album').files.length} 張`; }
+    function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
+    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
     async function compressImg(file) {
       return new Promise(resolve => {
         const reader = new FileReader(); reader.readAsDataURL(file);
@@ -398,8 +301,8 @@
           const img = new Image(); img.src = e.target.result;
           img.onload = () => {
             const canvas = document.createElement('canvas');
-            let w = img.width, h = img.height, max = 1000; 
-            if (w > h && w > max) { h *= max/w; w = max; } else if (h > max) { w *= max/h; h = max; }
+            let w = img.width, h = img.height, max = 1000;
+            if (w > max || h > max) { if (w > h) { h *= max/w; w = max; } else { w *= max/h; h = max; } }
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
             resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
@@ -408,11 +311,12 @@
       });
     }
     function resetForm() { document.querySelectorAll('.upload-btn').forEach(l => {l.style.backgroundImage='none'; l.innerHTML='拍照片'}); document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; }
+    function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
     function setDefaultTime() {
       const now = new Date();
       document.getElementById('mDate').value = now.toISOString().split('T')[0];
       document.getElementById('mTime').value = now.toTimeString().slice(0,5);
-      fetchLiveRate();
+      handleCountryChange();
     }
     window.onload = setDefaultTime;
   </script>
