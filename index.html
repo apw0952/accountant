@@ -6,36 +6,29 @@
   <title>AI 旅伴記帳</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* 樣式保持不變，維持你原本滿意的 UI */
     :root { --primary: #34a853; --bg: #f4f7f6; --text: #333; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 20px; }
-    
     .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
     .title { font-size: 22px; font-weight: bold; color: var(--primary); text-align: center; margin-bottom: 15px; }
     .tabs { display: flex; gap: 10px; }
     .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; color: #888; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: 0.3s; }
     .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-    
     .tab-content { display: none; padding: 20px; }
     .tab-content.active { display: block; }
     .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-    
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
-    
     .quick-entry-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; white-space: nowrap; }
     .quick-entry-row input { width: 140px; flex-shrink: 0; margin-bottom: 0; }
-    
     .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
-    .btn:disabled { background: #ccc; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
     .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
-    
-    /* 相機與相簿樣式回歸 */
     .camera-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
     .upload-btn { background: #f0f7ff; color: #1a73e8; border: 2px dashed #adc6ff; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80px; font-size: 12px; cursor: pointer; position: relative; background-size: cover; background-position: center; overflow: hidden;}
     .album-btn { background-color: #fffaf0; color: #f29900; border: 2px dashed #ffe0b2; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 50px; margin-bottom: 15px; }
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
-    
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     #chartContainer { position: relative; height: 250px; width: 100%; }
@@ -70,9 +63,10 @@
         <input type="time" id="mTime">
         <input type="text" id="mItem" placeholder="消費品項">
         <input type="text" id="mStore" placeholder="地點/商店">
-        <input type="number" id="mAmt" placeholder="金額">
+        <input type="number" id="mAmt" placeholder="當地金額">
       </div>
-      <button class="btn btn-outline" style="margin-top:10px;" onclick="submitManual()">送出單筆記帳</button>
+      <button id="manualBtn" class="btn btn-outline" style="margin-top:10px;" onclick="submitManual()">送出單筆記帳</button>
+      <div id="manualStatus" style="margin-top:10px; font-size:14px; text-align:center;"></div>
     </div>
 
     <div class="card">
@@ -90,7 +84,7 @@
       
       <input type="number" id="aiManualAmt" placeholder="手動修正總額 (選填)">
       <button id="aiBtn" class="btn" style="margin-top:10px;" onclick="submitAI()">AI 智慧辨識 ✨</button>
-      <div id="aiStatus" style="margin-top:15px; font-size:14px; color:#555;"></div>
+      <div id="aiStatus" style="margin-top:15px; font-size:14px; color:#555; text-align:center;"></div>
     </div>
   </div>
 
@@ -121,7 +115,7 @@
   </div>
 
   <script>
-    // ⚠️ 已經幫你把專屬網址整合進去了！
+    // ⚠️ 請填入你專屬的 GAS 網址
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
     
     let chartInstance = null;
@@ -134,13 +128,11 @@
       if(tabId === 'report') fetchStats(); 
     }
 
-    // 處理自訂日期欄位的顯示與隱藏
     function toggleCustomDate() {
       const range = document.getElementById('dateRange').value;
       document.getElementById('customDateContainer').style.display = (range === 'custom') ? 'flex' : 'none';
     }
 
-    // 預覽單張照片
     function previewImg(n) {
       const file = document.getElementById('pic'+n).files[0];
       if (file) {
@@ -149,7 +141,6 @@
       }
     }
 
-    // 預覽相簿多選
     function previewAlbum() {
       const files = document.getElementById('album').files;
       if (files.length > 0) {
@@ -158,7 +149,6 @@
       }
     }
 
-    // 圖片壓縮邏輯回歸
     async function compressImg(file) {
       return new Promise(resolve => {
         const reader = new FileReader();
@@ -174,12 +164,13 @@
             else if (h > max) { w *= max/h; h = max; }
             canvas.width = w; canvas.height = h;
             canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-            resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]); // 回傳不帶標頭的 Base64
+            resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
           };
         };
       });
     }
 
+    // 🚀 優化 1 & 2 & 3：非同步壓縮 + 標準化 Payload + 嚴謹的 Error Handling
     async function submitAI() {
       const btn = document.getElementById('aiBtn');
       const status = document.getElementById('aiStatus');
@@ -196,58 +187,107 @@
       if(allFiles.length === 0) return alert("請至少上傳或拍攝一張照片！");
       
       btn.disabled = true;
-      btn.innerText = "⏳ 跨國連線辨識中...";
+      btn.innerText = "⏳ AI 視覺解析中...";
+      status.innerHTML = "";
       
       try {
-        let base64Imgs = [];
-        for (let f of allFiles) {
-          base64Imgs.push(await compressImg(f));
-        }
+        // 並發壓縮圖片 (大幅提升效能)
+        const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
 
         const countrySelect = document.getElementById('countryMode');
+        
+        // 標準化 Payload 結構
         const payload = {
           action: "add_ai",
           images: base64Imgs,
-          currency: countrySelect.value,
-          country: countrySelect.options[countrySelect.selectedIndex].getAttribute('data-country'),
-          manualAmount: document.getElementById('aiManualAmt').value
+          context: {
+            currency: countrySelect.value,
+            country: countrySelect.options[countrySelect.selectedIndex].getAttribute('data-country'),
+            manualAmount: document.getElementById('aiManualAmt').value
+          }
         };
 
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        
+        if (!res.ok) throw new Error(`伺服器連線異常 (HTTP ${res.status})`);
+        
         const data = await res.json();
         
-        status.innerHTML = data.success ? "✅ 記帳成功！已寫入試算表。" : "❌ 失敗：" + data.message;
+        if (!data.success) {
+          throw new Error(data.message || "未知錯誤");
+        }
+        
+        status.innerHTML = "✅ 記帳成功！已寫入資料庫。";
+        
+        // 成功後清空圖片預覽 (UX 提升)
+        document.querySelectorAll('.upload-btn').forEach(lbl => { lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; });
+        document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片';
+        document.getElementById('albumLbl').style.background = '#fffaf0';
+        document.getElementById('aiManualAmt').value = '';
+        
       } catch (err) {
-        status.innerHTML = "❌ 連線異常，請確認 API 網址是否正確設定。";
+        status.innerHTML = `<span style="color:red;">❌ 失敗：${err.message}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "AI 智慧辨識 ✨";
       }
-      btn.disabled = false;
-      btn.innerText = "AI 智慧辨識 ✨";
     }
 
+    // 🚀 優化 1 & 7：標準化 Payload + UX 防呆與清空
     async function submitManual() {
+      const btn = document.getElementById('manualBtn');
+      const status = document.getElementById('manualStatus');
+      
+      const date = document.getElementById('mDate').value;
+      const time = document.getElementById('mTime').value;
       const item = document.getElementById('mItem').value;
+      const store = document.getElementById('mStore').value;
       const amt = document.getElementById('mAmt').value;
+      const currency = document.getElementById('countryMode').value;
+
       if(!item || !amt) return alert("請填寫品項與金額！");
 
+      btn.disabled = true;
+      btn.innerText = "寫入中...";
+      status.innerHTML = "";
+
       try {
+        // 統一成單一 record 物件
         const payload = {
           action: "add_manual",
-          date: document.getElementById('mDate').value,
-          time: document.getElementById('mTime').value,
-          item: item,
-          store: document.getElementById('mStore').value,
-          amount: amt,
-          currency: document.getElementById('countryMode').value
+          record: {
+            datetime: `${date} ${time}`,
+            item: item.trim(),
+            store: store.trim() || "未指定",
+            amount: Number(amt),
+            currency: currency,
+            category: "其他", 
+            subCategory: "手動輸入",
+            source: "manual"
+          }
         };
         
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        
+        if (!res.ok) throw new Error(`HTTP 錯誤 ${res.status}`);
+        
         const data = await res.json();
-        if(data.success) {
-          alert("✅ 手動記帳成功！");
-          document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = "";
-        }
+        if (!data.success) throw new Error(data.message);
+
+        status.innerHTML = "<span style='color:green;'>✅ 手動記帳成功！</span>";
+        
+        // 徹底清空表單，恢復預設時間
+        document.getElementById('mItem').value = ""; 
+        document.getElementById('mAmt').value = "";
+        document.getElementById('mStore').value = "";
+        setDefaultTime();
+        
       } catch (err) {
-        alert("連線失敗，請檢查 API 網址。");
+        status.innerHTML = `<span style='color:red;'>❌ 錯誤：${err.message}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "送出單筆記帳";
+        setTimeout(() => status.innerHTML = "", 3000); // 3秒後消除成功訊息
       }
     }
 
@@ -264,27 +304,35 @@
         };
         
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
+        if (!res.ok) throw new Error('API 錯誤');
         const data = await res.json();
         
         if(data.success) {
           document.getElementById('totalSpent').innerText = `NT$ ${Math.floor(data.total)}`;
           renderChart(data.categories);
+        } else {
+          throw new Error(data.message);
         }
       } catch (err) {
         document.getElementById('totalSpent').innerText = "無法載入";
       }
     }
 
+    // 🚀 優化 6：保護 Chart.js 不受空物件摧殘
     function renderChart(catData) {
       const ctx = document.getElementById('expenseChart').getContext('2d');
       if(chartInstance) chartInstance.destroy();
       
+      const safeData = catData || {};
+      const labels = Object.keys(safeData);
+      const dataVals = Object.values(safeData);
+      
       chartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: Object.keys(catData),
+          labels: labels,
           datasets: [{
-            data: Object.values(catData),
+            data: dataVals,
             backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
           }]
         },
@@ -292,16 +340,16 @@
       });
     }
 
-    // 初始化日期時間預設值
-    window.onload = () => {
+    function setDefaultTime() {
       const now = new Date();
-      // 設定台灣時區的日期
       const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
       document.getElementById('mDate').value = localDate;
-      document.getElementById('startDate').value = localDate;
-      document.getElementById('endDate').value = localDate;
+      if(document.getElementById('startDate').value === "") document.getElementById('startDate').value = localDate;
+      if(document.getElementById('endDate').value === "") document.getElementById('endDate').value = localDate;
       document.getElementById('mTime').value = now.toTimeString().slice(0,5);
-    };
+    }
+
+    window.onload = setDefaultTime;
   </script>
 </body>
 </html>
