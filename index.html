@@ -517,9 +517,13 @@
         reader.onload = e => {
           const img = new Image(); img.src = e.target.result;
           img.onload = () => {
-            const canvas = document.createElement('canvas'); let w = img.width, h = img.height, max = 1000;
+            // 🔴 痛點修正：將最大尺寸改為 800px (收據文字依舊清晰)，並將畫質壓到 0.6
+            const canvas = document.createElement('canvas'); let w = img.width, h = img.height, max = 800;
             if (w > h) { if (w > max) { h *= max/w; w = max; } } else { if (h > max) { w *= max/h; h = max; } }
-            canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+            canvas.width = w; canvas.height = h; 
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h); 
+            // 輸出 0.6 的 JPEG，大幅減少 Base64 字串長度
+            resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
           };
         };
       });
