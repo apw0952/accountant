@@ -33,7 +33,6 @@
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
     
-    /* 🔴 已套用修正：防止手機版現金/刷卡斷行重疊 */
     .pay-method-group { display: flex; gap: 25px; margin: 10px 0 15px 5px; align-items: center; }
     .pay-radio { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .pay-radio input[type="radio"] { width: 20px; height: 20px; margin: 0; cursor: pointer; accent-color: var(--primary); }
@@ -52,6 +51,7 @@
     .detail-info { flex: 1; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
     .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; }
+    
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     #chartContainer { position: relative; height: 250px; width: 100%; margin-bottom: 20px; }
@@ -129,11 +129,18 @@
     <div class="card">
       <div class="section-title">📸 AI 拍照辨識</div>
       <div class="camera-grid">
-        <label for="pic1" class="upload-btn" id="lbl1">拍照片</label><input type="file" id="pic1" accept="image/*" capture="environment" onchange="previewImg(1)">
-        <label for="pic2" class="upload-btn" id="lbl2">拍照片</label><input type="file" id="pic2" accept="image/*" capture="environment" onchange="previewImg(2)">
-        <label for="pic3" class="upload-btn" id="lbl3">拍照片</label><input type="file" id="pic3" accept="image/*" capture="environment" onchange="previewImg(3)">
+        <label for="pic1" class="upload-btn" id="lbl1" onclick="handleImgClick(event, 1)">拍照片</label>
+        <input type="file" id="pic1" accept="image/*" capture="environment" onchange="previewImg(1)">
+        
+        <label for="pic2" class="upload-btn" id="lbl2" onclick="handleImgClick(event, 2)">拍照片</label>
+        <input type="file" id="pic2" accept="image/*" capture="environment" onchange="previewImg(2)">
+        
+        <label for="pic3" class="upload-btn" id="lbl3" onclick="handleImgClick(event, 3)">拍照片</label>
+        <input type="file" id="pic3" accept="image/*" capture="environment" onchange="previewImg(3)">
       </div>
-      <label for="album" class="album-btn" id="albumLbl">🖼️ 從相簿多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
+      <label for="album" class="album-btn" id="albumLbl" onclick="handleAlbumClick(event)">🖼️ 從相簿多選照片</label>
+      <input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
+      
       <button id="aiBtn" class="btn" onclick="submitAI()">AI 智慧解析 ✨</button>
       <div id="aiStatus" style="margin-top:10px; font-size:14px; color:#555; text-align:center;"></div>
       
@@ -206,6 +213,30 @@
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["富邦 J卡", "國泰 CUBE卡"];
     
+    function handleImgClick(e, n) {
+      const input = document.getElementById('pic' + n);
+      if (input.files && input.files.length > 0) {
+        e.preventDefault(); 
+        if (confirm("要移除這張照片嗎？")) {
+          input.value = ""; 
+          const lbl = document.getElementById('lbl' + n);
+          lbl.style.backgroundImage = 'none';
+          lbl.innerHTML = '拍照片';
+        }
+      }
+    }
+
+    function handleAlbumClick(e) {
+      const input = document.getElementById('album');
+      if (input.files && input.files.length > 0) {
+        e.preventDefault();
+        if (confirm("要清除已選取的照片嗎？")) {
+          input.value = ""; 
+          document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片';
+        }
+      }
+    }
+
     function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
     function renderFavCards() {
       const html = favoriteCards.map((card, i) => `
@@ -364,7 +395,6 @@
         let finalItemsToSave = [];
         
         if (isSummaryOnly) {
-          // AI 智慧分組總計 (Group by StoreName)
           const storeGroups = {};
           pendingAiRecords.forEach(item => {
             const sName = item.storeName || "未辨識店家";
@@ -376,7 +406,7 @@
 
           const groupKeys = Object.keys(storeGroups);
           if (Math.abs(manualTotal - calculatedTotal) > 0.1 && groupKeys.length > 0) {
-            storeGroups[groupKeys[0]].amt += (manualTotal - calculatedTotal); // 差額補在第一間店
+            storeGroups[groupKeys[0]].amt += (manualTotal - calculatedTotal); 
           }
 
           groupKeys.forEach(sName => {
