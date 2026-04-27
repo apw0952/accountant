@@ -148,8 +148,9 @@
 
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
-    let chartInstance = null, pendingAiRecords = [];
+    const APP_TOKEN = "ai-travel-2026"; // 🔴 刪除授權 Token，對應後端預設值
     
+    let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["富邦 J卡", "國泰 CUBE卡"];
     
     function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
@@ -168,18 +169,20 @@
     }
     function deleteFavCard(index) { favoriteCards.splice(index, 1); saveFavCards(); renderFavCards(); }
     function selectFavCard(cardName) {
-      if(document.querySelector('input[name="mPayType"]:checked').value === 'card') document.getElementById('mCardName').value = cardName;
-      if(document.querySelector('input[name="aiPayType"]:checked').value === 'card') document.getElementById('aiCardName').value = cardName;
+      if(document.querySelector('input[name="mPayType"]:checked')?.value === 'card') document.getElementById('mCardName').value = cardName;
+      if(document.querySelector('input[name="aiPayType"]:checked')?.value === 'card') document.getElementById('aiCardName').value = cardName;
     }
     function togglePayUI(prefix) {
-      const isCard = document.querySelector(`input[name="${prefix}PayType"]:checked`).value === 'card';
-      document.getElementById(`${prefix}CardArea`).style.display = isCard ? 'block' : 'none';
+      const el = document.querySelector(`input[name="${prefix}PayType"]:checked`);
+      const isCard = el && el.value === 'card';
+      const cardArea = document.getElementById(`${prefix}CardArea`);
+      if(cardArea) cardArea.style.display = isCard ? 'block' : 'none';
       if(isCard) renderFavCards();
     }
     
     function getPaymentMethod(prefix) {
-      const type = document.querySelector(`input[name="${prefix}PayType"]:checked`).value;
-      if (type === 'cash') return "cash";
+      const el = document.querySelector(`input[name="${prefix}PayType"]:checked`);
+      if (!el || el.value === 'cash') return "cash";
       const cardName = document.getElementById(`${prefix}CardName`).value.trim();
       return cardName ? `card:${cardName}` : "card:未指定";
     }
@@ -190,11 +193,11 @@
       return `<span style="color:#1a73e8;">💳 ${payStr}</span>`;
     }
 
-    // 🔴 3. 前端日期防護
     function normalizeDateStr(d) {
-      if (!d) return new Date().toISOString();
-      const parsed = new Date(d.replace(" ", "T"));
-      return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+      let parsed = d ? new Date(d.replace(" ", "T")) : new Date();
+      if (isNaN(parsed.getTime())) parsed = new Date();
+      const tzOffset = parsed.getTimezoneOffset() * 60000;
+      return new Date(parsed - tzOffset).toISOString().slice(0, -1);
     }
 
     function switchTab(tabId) {
@@ -236,7 +239,6 @@
 
     async function submitAI() {
       const btn = document.getElementById('aiBtn'), status = document.getElementById('aiStatus');
-      // 🔴 5. 前端強迫限制只上傳前 5 張圖片，避免 Payload 炸裂
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
       
       if (allFiles.length === 0) return alert("請拍照片！");
@@ -249,6 +251,12 @@
         
         pendingAiRecords = data.items;
         renderAIPreview();
+        
+        // 🔴 6. 修復重複插入 DOM 的 Bug
+        if (!document.getElementById('aiHint')) {
+          document.querySelector('#saveSummaryOnly').parentNode.insertAdjacentHTML('afterend', '<p id="aiHint" style="margin:5px 0 0 28px; font-size:12px; color:#999;">系統會自動補差額，確保總額一致</p>');
+        }
+        
         status.innerHTML = "💡 解析完成，請確認金額與支付方式。";
       } catch (err) { status.innerHTML = `<span style="color:red;">❌ ${err.message}</span>`; }
       finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
@@ -284,8 +292,12 @@
       const btn = document.getElementById('saveAiBtn');
       const manualTotal = Number(document.getElementById('aiTotalInput').value);
       const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
-      const isSummaryOnly = document.getElementById('saveSummaryOnly').checked;
       
+      if (calculatedTotal > 0 && manualTotal > calculatedTotal * 3) {
+        if (!confirm("⚠️ 金額異常偏高，確定要儲存嗎？")) return;
+      }
+
+      const isSummaryOnly = document.getElementById('saveSummaryOnly').checked;
       const currency = document.getElementById('countryMode').value;
       const rate = Number(document.getElementById('currentRate').value) || 1;
       const trip = document.getElementById('tripName').value;
@@ -302,12 +314,12 @@
         } else {
           finalItemsToSave = [...pendingAiRecords];
           if (Math.abs(manualTotal - calculatedTotal) > 0.01) {
-            finalItemsToSave.push({ chineseName: "收據差額調整", localAmount: manualTotal - calculatedTotal, mainCategory: "其他", storeName: "系統補正", receiptDate: pendingAiRecords[0]?.receiptDate });
+            finalItemsToSave.push({ chineseName: "收據差額調整", localAmount: Number((manualTotal - calculatedTotal).toFixed(2)), mainCategory: "其他", storeName: "系統補正", receiptDate: pendingAiRecords[0]?.receiptDate });
           }
         }
 
         const records = finalItemsToSave.map(item => ({
-          datetime: normalizeDateStr(item.receiptDate), // 🔴 使用前端日期防爆
+          datetime: normalizeDateStr(item.receiptDate), 
           item: item.chineseName, store: item.storeName || "AI辨識", amount: item.localAmount,
           currency: currency, category: item.mainCategory || "其他", rate: rate, trip: trip, source: "AI", payment: payMethod
         }));
@@ -332,7 +344,7 @@
       btn.disabled = true;
       try {
         const payloadDate = normalizeDateStr(`${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`);
-        await apiPost({ action: "add_records", records: [{
+        const data = await apiPost({ action: "add_records", records: [{
           datetime: payloadDate,
           item, amount: amt, store: "手動",
           currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value,
@@ -375,7 +387,15 @@
         </div>`).join('');
       } catch (e) { }
     }
-    async function confirmDelete(uuid) { if (!confirm("確定刪除？")) return; try { const data = await apiPost({ action: "delete_record", uuid }); if (data.success) refreshAll(); } catch (e) { } }
+    
+    // 🔴 4. 刪除權限驗證：帶入 TOKEN
+    async function confirmDelete(uuid) { 
+      if (!confirm("確定刪除？")) return; 
+      try { 
+        const data = await apiPost({ action: "delete_record", uuid: uuid, token: APP_TOKEN }); 
+        if (data.success) refreshAll(); else alert("刪除失敗: " + (data.message || "權限不足"));
+      } catch (e) { alert("刪除失敗"); } 
+    }
     
     function renderChart(catData) {
       const ctx = document.getElementById('expenseChart').getContext('2d'); if (chartInstance) chartInstance.destroy();
