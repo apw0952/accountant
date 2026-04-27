@@ -215,6 +215,7 @@
     
     function handleImgClick(e, n) {
       const input = document.getElementById('pic' + n);
+      // 只有在裡面真的有檔案時，才觸發移除確認
       if (input.files && input.files.length > 0) {
         e.preventDefault(); 
         if (confirm("要移除這張照片嗎？")) {
@@ -523,7 +524,21 @@
         };
       });
     }
-    function resetForm() { document.querySelectorAll('.upload-btn').forEach(l => {l.style.backgroundImage='none'; l.innerHTML='拍照片'}); document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; }
+    
+    // 🔴 徹底修復：送出後確實清空隱藏的 <input type="file">，避免下次點擊誤判
+    function resetForm() { 
+      document.querySelectorAll('.upload-btn').forEach(l => {
+        l.style.backgroundImage='none'; 
+        l.innerHTML='拍照片';
+      }); 
+      document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; 
+      
+      ['pic1', 'pic2', 'pic3', 'album'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+      });
+    }
+    
     function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
     function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
     window.onload = setDefaultTime;
