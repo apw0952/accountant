@@ -18,23 +18,30 @@
     .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
+    
     .quick-entry-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; white-space: nowrap; }
     .quick-entry-row input, .quick-entry-row select { width: 140px; flex-shrink: 0; margin-bottom: 0; }
+    
     .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
     .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
+    .btn-accent { background: var(--accent); }
+    
     .camera-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
     .upload-btn { background: #f0f7ff; color: #1a73e8; border: 2px dashed #adc6ff; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80px; font-size: 12px; cursor: pointer; position: relative; background-size: cover; background-position: center; overflow: hidden;}
     .album-btn { background-color: #fffaf0; color: #f29900; border: 2px dashed #ffe0b2; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; height: 50px; margin-bottom: 15px; }
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
     
-    /* AI 預覽區優化 */
+    .pay-method-group { display: flex; gap: 15px; margin-bottom: 10px; }
+    .pay-radio { display: flex; align-items: center; gap: 5px; font-size: 16px; cursor: pointer; }
+    .fav-card-chip { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 6px 12px; border-radius: 20px; font-size: 12px; margin: 4px; cursor: pointer; border: 1px solid #d2e3fc; }
+    .fav-card-del { margin-left: 5px; color: #ff4d4f; cursor: pointer; font-weight: bold; }
+    
     #aiPreviewArea { margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; display: none; }
     .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
-    .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; }
+    .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; width: 100%; }
     
-    /* 總額修正區：更明顯的輸入框 */
     .ai-summary-row { background: #fff4e5; padding: 15px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 2px solid #f29900; }
     .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 140px; text-align: right; }
     
@@ -42,12 +49,24 @@
     .detail-info { flex: 1; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
     .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; }
+    
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
-    #chartContainer { position: relative; height: 250px; width: 100%; }
+    #chartContainer { position: relative; height: 250px; width: 100%; margin-bottom: 20px; }
+    
+    .pay-stat-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px dashed #eee; font-size: 14px; }
   </style>
 </head>
 <body>
+
+  <datalist id="bankList">
+    <option value="富邦銀行"></option><option value="國泰世華"></option>
+    <option value="中國信託"></option><option value="玉山銀行"></option>
+    <option value="台新銀行"></option><option value="星展銀行"></option>
+    <option value="聯邦銀行"></option><option value="兆豐銀行"></option>
+    <option value="花旗銀行"></option><option value="滙豐銀行"></option>
+    <option value="Apple Pay"></option><option value="Line Pay"></option>
+  </datalist>
 
   <div class="header">
     <div class="title">📒 AI 旅伴記帳助手</div>
@@ -83,10 +102,24 @@
         <input type="time" id="mTime">
         <select id="mCategory">
           <option value="食">🍕 食</option><option value="衣">👕 衣</option><option value="住">🏠 住</option>
-          <option value="行">🚗 行</option><option value="樂">🎡 樂</option><option value="其他" selected>❓ 其他</option>
+          <option value="行">🚗 行</option><option value="育">📚 育</option><option value="樂">🎡 樂</option><option value="其他" selected>❓ 其他</option>
         </select>
         <input type="text" id="mItem" placeholder="品項"><input type="number" id="mAmt" placeholder="金額">
       </div>
+      
+      <div class="section-title" style="margin-top:15px;">💳 支付方式</div>
+      <div class="pay-method-group">
+        <label class="pay-radio"><input type="radio" name="mPayType" value="cash" checked onchange="togglePayUI('m')"> 現金</label>
+        <label class="pay-radio"><input type="radio" name="mPayType" value="card" onchange="togglePayUI('m')"> 刷卡</label>
+      </div>
+      <div id="mCardArea" style="display:none; background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:10px;">
+        <div style="display:flex; gap:5px; align-items:center;">
+          <input type="text" id="mCardName" list="bankList" placeholder="搜尋銀行或輸入卡名..." style="margin-bottom:0;">
+          <button onclick="addFavCard('mCardName')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:10px 15px; cursor:pointer; white-space: nowrap;">+ 常用</button>
+        </div>
+        <div id="mFavCardsContainer" style="margin-top:10px;"></div>
+      </div>
+
       <button id="manualBtn" class="btn btn-outline" style="margin-top:10px;" onclick="submitManual()">送出單筆記帳</button>
       <div id="manualStatus" style="margin-top:10px; font-size:14px; text-align:center;"></div>
     </div>
@@ -98,7 +131,7 @@
         <label for="pic2" class="upload-btn" id="lbl2">拍照片</label><input type="file" id="pic2" accept="image/*" capture="environment" onchange="previewImg(2)">
         <label for="pic3" class="upload-btn" id="lbl3">拍照片</label><input type="file" id="pic3" accept="image/*" capture="environment" onchange="previewImg(3)">
       </div>
-      <label for="album" class="album-btn" id="albumLbl">🖼️ 多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
+      <label for="album" class="album-btn" id="albumLbl">🖼️ 從相簿多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
       <button id="aiBtn" class="btn" onclick="submitAI()">AI 智慧解析 ✨</button>
       <div id="aiStatus" style="margin-top:10px; font-size:14px; color:#555; text-align:center;"></div>
       
@@ -110,7 +143,7 @@
              <input type="checkbox" id="saveSummaryOnly" style="width:20px; height:20px; margin-bottom:0;"> 
              <b>僅記錄總額 (不列細項)</b>
            </label>
-           <p style="margin:5px 0 0 28px; font-size:12px; color:#666;">勾選後，將僅產生一筆「收據總計」紀錄。</p>
+           <p style="margin:5px 0 0 28px; font-size:12px; color:#666;">勾選後，將按不同店家自動合併成總額紀錄。</p>
         </div>
 
         <div id="aiItemList"></div>
@@ -123,7 +156,20 @@
           </div>
         </div>
 
-        <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認無誤，儲存紀錄 ✅</button>
+        <div class="section-title" style="margin-top:15px;">💳 支付方式</div>
+        <div class="pay-method-group">
+          <label class="pay-radio"><input type="radio" name="aiPayType" value="cash" checked onchange="togglePayUI('ai')"> 現金</label>
+          <label class="pay-radio"><input type="radio" name="aiPayType" value="card" onchange="togglePayUI('ai')"> 刷卡</label>
+        </div>
+        <div id="aiCardArea" style="display:none; background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:15px;">
+          <div style="display:flex; gap:5px; align-items:center;">
+            <input type="text" id="aiCardName" list="bankList" placeholder="搜尋銀行或輸入卡名..." style="margin-bottom:0;">
+            <button onclick="addFavCard('aiCardName')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:10px 15px; cursor:pointer; white-space: nowrap;">+ 常用</button>
+          </div>
+          <div id="aiFavCardsContainer" style="margin-top:10px;"></div>
+        </div>
+
+        <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認金額與支付方式，送出 ✅</button>
       </div>
     </div>
   </div>
@@ -142,13 +188,19 @@
         <div class="total-amt" id="totalSpent">NT$ 0</div>
       </div>
       <div id="chartContainer"><canvas id="expenseChart"></canvas></div>
+      
+      <div style="margin-top:20px; background:#f4f7f6; border-radius:10px; padding:15px;">
+        <div class="section-title" style="margin-bottom:5px;">💳 支付方式統計 (TWD)</div>
+        <div id="paymentStatsList"></div>
+      </div>
     </div>
     <div class="card"><div class="section-title">📋 最近明細</div><div id="recentList" style="max-height: 400px; overflow-y: auto;"></div></div>
   </div>
 
   <script>
+    // 🔴 確保此 URL 是你剛剛部署「新版本」後的正確網址
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
-    const APP_TOKEN = "ai-travel-2026"; // 🔴 刪除授權 Token，對應後端預設值
+    const APP_TOKEN = "ai-travel-2026"; // 刪除權限 Token
     
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["富邦 J卡", "國泰 CUBE卡"];
@@ -247,12 +299,14 @@
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
-        if(!Array.isArray(data.items) || data.items.length === 0) throw new Error("無效的解析結果");
+        if(!Array.isArray(data.items) || data.items.length === 0) {
+           status.innerHTML = `💡 ${data.warning || "無資料"}`;
+           return;
+        }
         
         pendingAiRecords = data.items;
         renderAIPreview();
         
-        // 🔴 6. 修復重複插入 DOM 的 Bug
         if (!document.getElementById('aiHint')) {
           document.querySelector('#saveSummaryOnly').parentNode.insertAdjacentHTML('afterend', '<p id="aiHint" style="margin:5px 0 0 28px; font-size:12px; color:#999;">系統會自動補差額，確保總額一致</p>');
         }
@@ -292,12 +346,12 @@
       const btn = document.getElementById('saveAiBtn');
       const manualTotal = Number(document.getElementById('aiTotalInput').value);
       const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
+      const isSummaryOnly = document.getElementById('saveSummaryOnly').checked;
       
       if (calculatedTotal > 0 && manualTotal > calculatedTotal * 3) {
         if (!confirm("⚠️ 金額異常偏高，確定要儲存嗎？")) return;
       }
 
-      const isSummaryOnly = document.getElementById('saveSummaryOnly').checked;
       const currency = document.getElementById('countryMode').value;
       const rate = Number(document.getElementById('currentRate').value) || 1;
       const trip = document.getElementById('tripName').value;
@@ -307,10 +361,32 @@
       
       try {
         let finalItemsToSave = [];
-        const safeStoreName = pendingAiRecords[0]?.storeName || "AI辨識";
         
         if (isSummaryOnly) {
-          finalItemsToSave.push({ chineseName: "收據總計 (" + safeStoreName + ")", localAmount: manualTotal, mainCategory: pendingAiRecords[0]?.mainCategory || "其他", storeName: safeStoreName, receiptDate: pendingAiRecords[0]?.receiptDate });
+          // AI 智慧分組總計 (Group by StoreName)
+          const storeGroups = {};
+          pendingAiRecords.forEach(item => {
+            const sName = item.storeName || "未辨識店家";
+            if (!storeGroups[sName]) {
+              storeGroups[sName] = { amt: 0, cat: item.mainCategory || "其他", date: item.receiptDate };
+            }
+            storeGroups[sName].amt += Number(item.localAmount) || 0;
+          });
+
+          const groupKeys = Object.keys(storeGroups);
+          if (Math.abs(manualTotal - calculatedTotal) > 0.1 && groupKeys.length > 0) {
+            storeGroups[groupKeys[0]].amt += (manualTotal - calculatedTotal); // 差額補在第一間店
+          }
+
+          groupKeys.forEach(sName => {
+            finalItemsToSave.push({
+              chineseName: `收據總計 (${sName})`,
+              localAmount: Number(storeGroups[sName].amt.toFixed(2)),
+              mainCategory: storeGroups[sName].cat,
+              storeName: sName,
+              receiptDate: storeGroups[sName].date
+            });
+          });
         } else {
           finalItemsToSave = [...pendingAiRecords];
           if (Math.abs(manualTotal - calculatedTotal) > 0.01) {
@@ -388,7 +464,6 @@
       } catch (e) { }
     }
     
-    // 🔴 4. 刪除權限驗證：帶入 TOKEN
     async function confirmDelete(uuid) { 
       if (!confirm("確定刪除？")) return; 
       try { 
