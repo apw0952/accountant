@@ -149,6 +149,53 @@
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
     let chartInstance = null, pendingAiRecords = [];
+    
+    let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["富邦 J卡", "國泰 CUBE卡"];
+    
+    function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
+    function renderFavCards() {
+      const html = favoriteCards.map((card, i) => `
+        <div class="fav-card-chip" onclick="selectFavCard('${card}')">
+          ${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span>
+        </div>
+      `).join('');
+      document.getElementById('mFavCardsContainer').innerHTML = html;
+      document.getElementById('aiFavCardsContainer').innerHTML = html;
+    }
+    function addFavCard(inputId) {
+      const val = document.getElementById(inputId).value.trim();
+      if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); }
+    }
+    function deleteFavCard(index) { favoriteCards.splice(index, 1); saveFavCards(); renderFavCards(); }
+    function selectFavCard(cardName) {
+      if(document.querySelector('input[name="mPayType"]:checked').value === 'card') document.getElementById('mCardName').value = cardName;
+      if(document.querySelector('input[name="aiPayType"]:checked').value === 'card') document.getElementById('aiCardName').value = cardName;
+    }
+    function togglePayUI(prefix) {
+      const isCard = document.querySelector(`input[name="${prefix}PayType"]:checked`).value === 'card';
+      document.getElementById(`${prefix}CardArea`).style.display = isCard ? 'block' : 'none';
+      if(isCard) renderFavCards();
+    }
+    
+    function getPaymentMethod(prefix) {
+      const type = document.querySelector(`input[name="${prefix}PayType"]:checked`).value;
+      if (type === 'cash') return "cash";
+      const cardName = document.getElementById(`${prefix}CardName`).value.trim();
+      return cardName ? `card:${cardName}` : "card:未指定";
+    }
+
+    function renderPaymentDisplay(payStr) {
+      if (payStr === 'cash' || payStr === '現金') return '<span style="color:#2e7d32;">💵 現金</span>';
+      if (payStr.startsWith('card:')) return `<span style="color:#1a73e8;">💳 ${payStr.split(':')[1]}</span>`;
+      return `<span style="color:#1a73e8;">💳 ${payStr}</span>`;
+    }
+
+    // 🔴 3. 前端日期防護
+    function normalizeDateStr(d) {
+      if (!d) return new Date().toISOString();
+      const parsed = new Date(d.replace(" ", "T"));
+      return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+    }
 
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -172,26 +219,37 @@
 
     async function fetchLiveRate() {
       const curr = document.getElementById('countryMode').value;
-      if (curr === "TWD") { document.getElementById('currentRate').value = 1; return; }
+      const defaultRate = document.querySelector('#countryMode option:checked').dataset.rate;
+      const rateInput = document.getElementById('currentRate');
+      if (curr === "TWD") { rateInput.value = 1; return; }
+      
       try {
         const res = await fetch(`https://open.er-api.com/v6/latest/${curr}`);
         const data = await res.json();
-        if (data.result === "success") document.getElementById('currentRate').value = data.rates.TWD.toFixed(4);
-      } catch (e) { }
+        if (data.result === "success" && data.rates?.TWD) {
+          rateInput.value = data.rates.TWD.toFixed(4);
+        } else { throw new Error("API 無效"); }
+      } catch (e) { 
+        rateInput.value = rateInput.value || defaultRate; 
+      }
     }
 
     async function submitAI() {
       const btn = document.getElementById('aiBtn'), status = document.getElementById('aiStatus');
-      const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files];
+      // 🔴 5. 前端強迫限制只上傳前 5 張圖片，避免 Payload 炸裂
+      const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
+      
       if (allFiles.length === 0) return alert("請拍照片！");
       btn.disabled = true; btn.innerText = "⏳ 解析中...";
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
+        if(!Array.isArray(data.items) || data.items.length === 0) throw new Error("無效的解析結果");
+        
         pendingAiRecords = data.items;
         renderAIPreview();
-        status.innerHTML = "💡 解析完成，總額錯誤可直接在下方修改。";
+        status.innerHTML = "💡 解析完成，請確認金額與支付方式。";
       } catch (err) { status.innerHTML = `<span style="color:red;">❌ ${err.message}</span>`; }
       finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
     }
@@ -207,7 +265,8 @@
           <select onchange="pendingAiRecords[${index}].mainCategory=this.value">
             <option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option>
             <option value="住" ${item.mainCategory==='住'?'selected':''}>住</option><option value="行" ${item.mainCategory==='行'?'selected':''}>行</option>
-            <option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option><option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option>
+            <option value="育" ${item.mainCategory==='育'?'selected':''}>育</option><option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option>
+            <option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option>
           </select></div>`;
         container.appendChild(div);
       });
@@ -221,62 +280,63 @@
     }
 
     async function saveAIResults() {
+      if(pendingAiRecords.length === 0) return alert("無資料");
       const btn = document.getElementById('saveAiBtn');
       const manualTotal = Number(document.getElementById('aiTotalInput').value);
       const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
       const isSummaryOnly = document.getElementById('saveSummaryOnly').checked;
       
       const currency = document.getElementById('countryMode').value;
-      const rate = Number(document.getElementById('currentRate').value);
+      const rate = Number(document.getElementById('currentRate').value) || 1;
       const trip = document.getElementById('tripName').value;
+      const payMethod = getPaymentMethod('ai'); 
 
       btn.disabled = true; btn.innerText = "儲存中...";
       
       try {
         let finalItemsToSave = [];
-
+        const safeStoreName = pendingAiRecords[0]?.storeName || "AI辨識";
+        
         if (isSummaryOnly) {
-          // 💡 僅記錄總額邏輯
-          finalItemsToSave.push({
-            chineseName: "收據總計 (" + (pendingAiRecords[0]?.storeName || "未辨識商店") + ")",
-            localAmount: manualTotal,
-            mainCategory: pendingAiRecords[0]?.mainCategory || "其他",
-            storeName: pendingAiRecords[0]?.storeName || "AI辨識",
-            receiptDate: pendingAiRecords[0]?.receiptDate || ""
-          });
+          finalItemsToSave.push({ chineseName: "收據總計 (" + safeStoreName + ")", localAmount: manualTotal, mainCategory: pendingAiRecords[0]?.mainCategory || "其他", storeName: safeStoreName, receiptDate: pendingAiRecords[0]?.receiptDate });
         } else {
-          // 💡 列出細項邏輯
           finalItemsToSave = [...pendingAiRecords];
           if (Math.abs(manualTotal - calculatedTotal) > 0.01) {
-            finalItemsToSave.push({ chineseName: "收據差額調整", localAmount: manualTotal - calculatedTotal, mainCategory: "其他", storeName: "系統補正", receiptDate: pendingAiRecords[0]?.receiptDate || "" });
+            finalItemsToSave.push({ chineseName: "收據差額調整", localAmount: manualTotal - calculatedTotal, mainCategory: "其他", storeName: "系統補正", receiptDate: pendingAiRecords[0]?.receiptDate });
           }
         }
 
         const records = finalItemsToSave.map(item => ({
-          datetime: item.receiptDate || new Date().toISOString(),
+          datetime: normalizeDateStr(item.receiptDate), // 🔴 使用前端日期防爆
           item: item.chineseName, store: item.storeName || "AI辨識", amount: item.localAmount,
-          currency: currency, category: item.mainCategory || "其他",
-          rate: rate, trip: trip, source: "AI"
+          currency: currency, category: item.mainCategory || "其他", rate: rate, trip: trip, source: "AI", payment: payMethod
         }));
 
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
-        document.getElementById('aiPreviewArea').style.display = 'none';
-        alert("儲存成功！"); resetForm();
+        document.getElementById('aiPreviewArea').style.display = 'none'; 
+        alert(data.count === 0 ? "資料已存在，跳過重複寫入！" : "確認成功，已入帳！"); 
+        resetForm();
       } catch (err) { alert(err.message); }
-      finally { btn.disabled = false; btn.innerText = "確認無誤，儲存紀錄 ✅"; }
+      finally { btn.disabled = false; btn.innerText = "確認金額與支付方式，送出 ✅"; }
     }
 
     async function submitManual() {
       const btn = document.getElementById('manualBtn');
       const item = document.getElementById('mItem').value.trim(), amt = Number(document.getElementById('mAmt').value);
       if(!item || !amt) return alert("填寫品項與金額");
+      
+      const payMethod = getPaymentMethod('m'); 
+      const rate = Number(document.getElementById('currentRate').value) || 1;
+
       btn.disabled = true;
       try {
+        const payloadDate = normalizeDateStr(`${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`);
         await apiPost({ action: "add_records", records: [{
-          datetime: `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`, item, amount: amt, store: "手動",
+          datetime: payloadDate,
+          item, amount: amt, store: "手動",
           currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value,
-          rate: Number(document.getElementById('currentRate').value), trip: document.getElementById('tripName').value, source: "Manual"
+          rate: rate, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod
         }]});
         document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; alert("成功！");
       } catch (e) { alert("失敗"); }
@@ -287,22 +347,41 @@
     async function fetchStats() {
       try {
         const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip: document.getElementById('tripName').value, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
-        if (data.success) { document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; renderChart(data.categories); }
+        if (data.success) { 
+          document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
+          renderChart(data.categories); 
+          
+          const payHtml = Object.keys(data.payments).map(k => {
+            const payName = k === 'cash' || k === '現金' ? '現金' : (k.startsWith('card:') ? k.split(':')[1] : k);
+            return `<div class="pay-stat-item"><span>${payName}</span> <b>NT$ ${Math.round(data.payments[k])}</b></div>`;
+          }).join('');
+          document.getElementById('paymentStatsList').innerHTML = payHtml || "<div style='color:#999; font-size:12px; text-align:center;'>暫無資料</div>";
+        }
       } catch (e) { }
     }
+    
     async function fetchRecent() {
       try {
         const data = await apiPost({ action: "get_recent", trip: document.getElementById('tripName').value });
         const list = document.getElementById('recentList');
         if (!data.success || data.records.length === 0) { list.innerHTML = "無紀錄"; return; }
-        list.innerHTML = data.records.map(r => `<div class="detail-item"><div class="detail-info"><b>${r.item}</b><br><small>${new Date(r.datetime).toLocaleString()}</small></div><div class="detail-amt">${r.amount} ${r.currency}</div><button onclick="confirmDelete('${r.uuid}')" class="del-btn">🗑️</button></div>`).join('');
+        list.innerHTML = data.records.map(r => `<div class="detail-item">
+          <div class="detail-info">
+            <b>${r.item}</b> <small>(${r.category})</small><br>
+            <small style="font-weight:bold;">${renderPaymentDisplay(r.payment)}</small> <small style="color:#aaa; margin-left:5px;">${new Date(r.datetime).toLocaleDateString()}</small>
+          </div>
+          <div class="detail-amt">${r.amount} <small>${r.currency}</small></div>
+          <button onclick="confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
+        </div>`).join('');
       } catch (e) { }
     }
     async function confirmDelete(uuid) { if (!confirm("確定刪除？")) return; try { const data = await apiPost({ action: "delete_record", uuid }); if (data.success) refreshAll(); } catch (e) { } }
+    
     function renderChart(catData) {
       const ctx = document.getElementById('expenseChart').getContext('2d'); if (chartInstance) chartInstance.destroy();
       chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a'] }] }, options: { responsive: true, maintainAspectRatio: false } });
     }
+    
     function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
     function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
     async function compressImg(file) {
@@ -313,15 +392,14 @@
           img.onload = () => {
             const canvas = document.createElement('canvas'); let w = img.width, h = img.height, max = 1000;
             if (w > h) { if (w > max) { h *= max/w; w = max; } } else { if (h > max) { w *= max/h; h = max; } }
-            canvas.width = w; canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
+            canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); resolve(canvas.toDataURL('image/jpeg', 0.7).split(',')[1]);
           };
         };
       });
     }
     function resetForm() { document.querySelectorAll('.upload-btn').forEach(l => {l.style.backgroundImage='none'; l.innerHTML='拍照片'}); document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; }
     function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
-    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); }
+    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
     window.onload = setDefaultTime;
   </script>
 </body>
