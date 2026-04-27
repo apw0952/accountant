@@ -33,6 +33,7 @@
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
     
+    /* 🔴 已套用修正：防止手機版現金/刷卡斷行重疊 */
     .pay-method-group { display: flex; gap: 25px; margin: 10px 0 15px 5px; align-items: center; }
     .pay-radio { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .pay-radio input[type="radio"] { width: 20px; height: 20px; margin: 0; cursor: pointer; accent-color: var(--primary); }
@@ -207,15 +208,16 @@
   </div>
 
   <script>
+    // 🔴 確保此 URL 是你剛剛部署「新版本」後的正確網址
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
     const APP_TOKEN = "ai-travel-2026"; 
     
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["富邦 J卡", "國泰 CUBE卡"];
     
+    // 🔴 點擊照片時觸發移除確認
     function handleImgClick(e, n) {
       const input = document.getElementById('pic' + n);
-      // 只有在裡面真的有檔案時，才觸發移除確認
       if (input.files && input.files.length > 0) {
         e.preventDefault(); 
         if (confirm("要移除這張照片嗎？")) {
@@ -227,6 +229,7 @@
       }
     }
 
+    // 🔴 點擊相簿時觸發移除確認
     function handleAlbumClick(e) {
       const input = document.getElementById('album');
       if (input.files && input.files.length > 0) {
@@ -248,21 +251,44 @@
       document.getElementById('mFavCardsContainer').innerHTML = html;
       document.getElementById('aiFavCardsContainer').innerHTML = html;
     }
+    
+    // 🔴 全域同步：點擊常用卡片時同步兩區
+    function selectFavCard(cardName) {
+      if(document.querySelector('input[name="mPayType"]:checked')?.value === 'card') {
+        document.getElementById('mCardName').value = cardName;
+      }
+      if(document.querySelector('input[name="aiPayType"]:checked')?.value === 'card') {
+        document.getElementById('aiCardName').value = cardName;
+      }
+    }
+    
     function addFavCard(inputId) {
       const val = document.getElementById(inputId).value.trim();
       if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); }
     }
     function deleteFavCard(index) { favoriteCards.splice(index, 1); saveFavCards(); renderFavCards(); }
-    function selectFavCard(cardName) {
-      if(document.querySelector('input[name="mPayType"]:checked')?.value === 'card') document.getElementById('mCardName').value = cardName;
-      if(document.querySelector('input[name="aiPayType"]:checked')?.value === 'card') document.getElementById('aiCardName').value = cardName;
-    }
+    
+    // 🔴 全域同步：切換現金/刷卡時互相連動
     function togglePayUI(prefix) {
       const el = document.querySelector(`input[name="${prefix}PayType"]:checked`);
       const isCard = el && el.value === 'card';
       const cardArea = document.getElementById(`${prefix}CardArea`);
       if(cardArea) cardArea.style.display = isCard ? 'block' : 'none';
       if(isCard) renderFavCards();
+
+      const targetPrefix = prefix === 'm' ? 'ai' : 'm';
+      const targetRadioCash = document.querySelector(`input[name="${targetPrefix}PayType"][value="cash"]`);
+      const targetRadioCard = document.querySelector(`input[name="${targetPrefix}PayType"][value="card"]`);
+      const targetCardArea = document.getElementById(`${targetPrefix}CardArea`);
+
+      if (isCard) {
+        if(targetRadioCard) targetRadioCard.checked = true;
+        if(targetCardArea) targetCardArea.style.display = 'block';
+        document.getElementById(`${targetPrefix}CardName`).value = document.getElementById(`${prefix}CardName`).value;
+      } else {
+        if(targetRadioCash) targetRadioCash.checked = true;
+        if(targetCardArea) targetCardArea.style.display = 'none';
+      }
     }
     
     function getPaymentMethod(prefix) {
@@ -511,25 +537,25 @@
     
     function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
     function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
+    
+    // 🔴 降低壓縮率防爆：800px / 0.6 品質
     async function compressImg(file) {
       return new Promise(resolve => {
         const reader = new FileReader(); reader.readAsDataURL(file);
         reader.onload = e => {
           const img = new Image(); img.src = e.target.result;
           img.onload = () => {
-            // 🔴 痛點修正：將最大尺寸改為 800px (收據文字依舊清晰)，並將畫質壓到 0.6
             const canvas = document.createElement('canvas'); let w = img.width, h = img.height, max = 800;
             if (w > h) { if (w > max) { h *= max/w; w = max; } } else { if (h > max) { w *= max/h; h = max; } }
             canvas.width = w; canvas.height = h; 
             canvas.getContext('2d').drawImage(img, 0, 0, w, h); 
-            // 輸出 0.6 的 JPEG，大幅減少 Base64 字串長度
             resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
           };
         };
       });
     }
     
-    // 🔴 徹底修復：送出後確實清空隱藏的 <input type="file">，避免下次點擊誤判
+    // 🔴 徹底清空快取避免無法再次點擊
     function resetForm() { 
       document.querySelectorAll('.upload-btn').forEach(l => {
         l.style.backgroundImage='none'; 
@@ -545,6 +571,15 @@
     
     function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
     function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
+    
+    // 🔴 雙向同步：手動打字也能互相影響
+    document.getElementById('mCardName').addEventListener('input', function(e) {
+      document.getElementById('aiCardName').value = e.target.value;
+    });
+    document.getElementById('aiCardName').addEventListener('input', function(e) {
+      document.getElementById('mCardName').value = e.target.value;
+    });
+    
     window.onload = setDefaultTime;
   </script>
 </body>
