@@ -240,35 +240,26 @@
         pendingAiRecords = data.items;
         renderAIPreview();
         status.innerHTML = "💡 解析完成，請檢查並送出。";
-      } catch (err) { status.innerHTML = `<span style="color:red;">❌ 解析失敗：${err.message}</span>`; }
+      } catch (err) { status.innerHTML = `<span style="color:red;">❌ ${err.message}</span>`; }
       finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
     }
 
-    // 🔴 視覺升級：同一間店的收據給予專屬顏色與標籤
+    // 🔴 視覺升級：渲染時帶入後端的彩色邊條與店名區隔
     function renderAIPreview() {
       const container = document.getElementById('aiItemList'); container.innerHTML = "";
       document.getElementById('aiPreviewArea').style.display = 'block';
       document.getElementById('aiCurrencyLabel').innerText = document.getElementById('countryMode').value;
       
-      const colors = ['#1a73e8', '#f29900', '#9c27b0', '#009688']; // 藍, 橘, 紫, 綠
-      const storeColorMap = {};
-      let colorIndex = 0;
-
       pendingAiRecords.forEach((item, i) => {
-        const store = item.storeName || "未辨識店家";
-        
-        // 分配店家專屬顏色
-        if (!(store in storeColorMap)) {
-          storeColorMap[store] = colors[colorIndex % colors.length];
-          colorIndex++;
-        }
-        
         const div = document.createElement('div'); 
         div.className = 'preview-item';
-        div.style.borderLeftColor = storeColorMap[store]; // 動態改變左側顏色
+        
+        const barColor = item.displayColor || '#1a73e8'; // 若無預設藍色
+        div.style.borderLeft = `4px solid ${barColor}`;
+        const store = item.storeName || "未辨識店家";
         
         div.innerHTML = `
-          <div style="font-size:12px; color:${storeColorMap[store]}; margin-bottom:5px; font-weight:bold;">🏪 ${store}</div>
+          <div style="font-size:12px; color:${barColor}; margin-bottom:5px; font-weight:bold;">🏪 ${store}</div>
           <input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${i}].chineseName=this.value">
           <div style="display:flex; gap:5px; margin-top:5px;">
             <input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${i}, this.value)">
