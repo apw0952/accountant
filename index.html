@@ -62,8 +62,8 @@
     
     .pay-stat-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px dashed #eee; font-size: 14px; }
 
-    /* 乾淨極簡的自訂彈窗樣式 */
-    #itemModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+    /* 共用彈窗基礎樣式 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
     .modal-content { background: white; padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 80vh; display: flex; flex-direction: column; }
     .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; flex-shrink: 0; }
     .modal-content p { font-size: 15px; color: #333; line-height: 1.8; word-wrap: break-word; margin-bottom: 20px; text-align: left; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
@@ -180,11 +180,22 @@
     <div class="card"><div class="section-title">📋 最近明細 (點擊查看詳情)</div><div id="recentList" style="max-height: 500px; overflow-y: auto;"></div></div>
   </div>
 
-  <div id="itemModal" onclick="this.style.display='none'">
+  <div id="itemModal" class="modal-overlay" onclick="this.style.display='none'">
     <div class="modal-content" onclick="event.stopPropagation();">
       <h3>🛍️ 購買內容</h3>
       <p id="modalItemText"></p>
       <button onclick="document.getElementById('itemModal').style.display='none'" class="btn btn-outline" style="padding:10px; flex-shrink: 0;">關閉</button>
+    </div>
+  </div>
+
+  <div id="deleteModal" class="modal-overlay" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation();">
+      <h3 style="color: #ff4d4f;">⚠️ 確定刪除？</h3>
+      <p style="text-align: center; margin-bottom: 20px;">刪除後將無法復原這筆紀錄。</p>
+      <div style="display: flex; gap: 10px;">
+        <button onclick="document.getElementById('deleteModal').style.display='none'" class="btn btn-outline" style="padding:10px; flex: 1;">取消</button>
+        <button onclick="executeDelete()" class="btn" style="padding:10px; flex: 1; background: #ff4d4f;">確定刪除</button>
+      </div>
     </div>
   </div>
 
@@ -193,16 +204,38 @@
     const APP_TOKEN = "ai-travel-2026"; 
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["國泰 CUBE卡"];
+    let pendingDeleteUuids = ""; // 存放準備刪除的 UUID
 
     function handleImgClick(e, n) { const input = document.getElementById('pic' + n); if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } } }
     function handleAlbumClick(e) { const input = document.getElementById('album'); if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } } }
     function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
     function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
     
-    // 🔴 彈窗改為支援 HTML（為了支援條列式的換行）
+    // 呼叫明細彈窗
     function showItemModal(html) {
       document.getElementById('modalItemText').innerHTML = html;
       document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    // 🔴 呼叫自訂刪除彈窗 (取代原生的 window.confirm)
+    function confirmDelete(uuidsStr) {
+      pendingDeleteUuids = uuidsStr;
+      document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    // 🔴 執行真正的刪除動作
+    async function executeDelete() {
+      document.getElementById('deleteModal').style.display = 'none'; // 先關閉彈窗
+      if (!pendingDeleteUuids) return;
+      
+      const uuids = pendingDeleteUuids.split(',');
+      try {
+        const res = await apiPost({ action: "delete_record", uuids: uuids, token: APP_TOKEN }); 
+        if (res.success) refreshAll(); 
+      } catch (e) {
+        console.error("刪除失敗");
+      }
+      pendingDeleteUuids = ""; // 清空
     }
 
     function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
@@ -258,7 +291,6 @@
     function updateAiItemAmt(i, v) { pendingAiRecords[i].localAmount = Number(v); calculateAiTotal(); }
     function calculateAiTotal() { document.getElementById('aiTotalInput').value = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0); }
 
-    // 🔴 儲存邏輯：無條件全部存細項，資料庫永遠是最完整的狀態
     async function saveAIResults() {
       if(pendingAiRecords.length === 0) return alert("無資料");
       const btn = document.getElementById('saveAiBtn'), mTotal = Number(document.getElementById('aiTotalInput').value);
@@ -271,16 +303,13 @@
       btn.disabled = true;
       try {
         let toSave = [...pendingAiRecords];
-        
-        // 若手動修正的總額不同，加入一筆差額調整
         if (Math.abs(mTotal - calculatedTotal) > 0.01) {
           toSave.push({ chineseName: "收據差額調整", storeName: pendingAiRecords[0]?.storeName || "系統補正", localAmount: Number((mTotal - calculatedTotal).toFixed(2)), mainCategory: "其他", receiptDate: pendingAiRecords[0]?.receiptDate });
         }
-        
         const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI辨識", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI", payment: payMethod }));
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
-        alert("儲存成功！"); document.getElementById('aiPreviewArea').style.display = 'none'; resetForm(); refreshAll();
+        document.getElementById('aiPreviewArea').style.display = 'none'; resetForm(); refreshAll();
       } catch (err) { alert(err.message); }
       finally { btn.disabled = false; }
     }
@@ -295,12 +324,11 @@
       try {
         const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
         const data = await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
-        if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！"); refreshAll(); }
+        if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; refreshAll(); }
       } catch (e) { alert("失敗"); }
       finally { btn.disabled = false; }
     }
 
-    // 🔴 刷新邏輯：前端智慧摺疊 (Group by groupId)
     async function refreshAll() {
       const trip = document.getElementById('tripName').value;
       try {
@@ -314,20 +342,18 @@
         const recent = await apiPost({ action: "get_recent", trip });
         if (recent.success) {
           const groups = {};
-          // 遍歷所有細項，依據後端發放的 groupId 進行打包
           recent.records.forEach(r => {
-            const gid = r.groupId || r.uuid; // 若舊資料無 groupId，則自己單獨一組
+            const gid = r.groupId || r.uuid; 
             if (!groups[gid]) {
               groups[gid] = { store: r.store, payment: r.payment, datetime: r.datetime, currency: r.currency, totalAmount: 0, items: [], uuids: [] };
             }
             groups[gid].totalAmount += Number(r.amount);
             groups[gid].items.push(`▪️ ${r.item} ($${r.amount})`);
-            groups[gid].uuids.push(r.uuid); // 收集這個群組所有的 uuid，方便一次刪除
+            groups[gid].uuids.push(r.uuid); 
           });
 
-          // 渲染合併後的方塊
           document.getElementById('recentList').innerHTML = Object.values(groups).map(g => {
-            const uuidsStr = g.uuids.join(','); // 轉字串給 onclick 使用
+            const uuidsStr = g.uuids.join(','); 
             const modalHtml = g.items.join('<br>').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const itemCountStr = g.items.length > 1 ? `(共${g.items.length}項)` : '';
             return `
@@ -342,15 +368,6 @@
           }).join('') || "無紀錄";
         }
       } catch (e) {}
-    }
-
-    // 🔴 刪除邏輯：支援傳送陣列 (uuids) 給後端，一次刪除整個群組
-    async function confirmDelete(uuidsStr) { 
-      if (confirm("確定刪除此紀錄？")) { 
-        const uuids = uuidsStr.split(',');
-        const res = await apiPost({ action: "delete_record", uuids: uuids, token: APP_TOKEN }); 
-        if (res.success) refreshAll(); 
-      } 
     }
     
     function renderChart(catData) { const ctx = document.getElementById('expenseChart').getContext('2d'); if (chartInstance) chartInstance.destroy(); chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } } }); }
