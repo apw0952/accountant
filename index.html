@@ -62,11 +62,11 @@
     
     .pay-stat-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px dashed #eee; font-size: 14px; }
 
-    /* 🔴 新增：乾淨極簡的自訂彈窗樣式 */
+    /* 乾淨極簡的自訂彈窗樣式 */
     #itemModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
-    .modal-content { background: white; padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; }
-    .modal-content p { font-size: 16px; color: #333; line-height: 1.6; word-wrap: break-word; margin-bottom: 20px; text-align: left; }
+    .modal-content { background: white; padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 80vh; display: flex; flex-direction: column; }
+    .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; flex-shrink: 0; }
+    .modal-content p { font-size: 15px; color: #333; line-height: 1.8; word-wrap: break-word; margin-bottom: 20px; text-align: left; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
   </style>
 </head>
 <body>
@@ -139,7 +139,6 @@
       
       <div id="aiPreviewArea">
         <div class="section-title">🔍 確認結果</div>
-        <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:10px;"><input type="checkbox" id="saveSummaryOnly" style="width:18px; height:18px;"> <b>僅記錄店家總額</b></label>
         <div id="aiItemList"></div>
         <div class="ai-summary-row">
           <span style="font-size:14px;">💰 實付總額修正：</span>
@@ -185,7 +184,7 @@
     <div class="modal-content" onclick="event.stopPropagation();">
       <h3>🛍️ 購買內容</h3>
       <p id="modalItemText"></p>
-      <button onclick="document.getElementById('itemModal').style.display='none'" class="btn btn-outline" style="padding:10px;">關閉</button>
+      <button onclick="document.getElementById('itemModal').style.display='none'" class="btn btn-outline" style="padding:10px; flex-shrink: 0;">關閉</button>
     </div>
   </div>
 
@@ -195,19 +194,17 @@
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["國泰 CUBE卡"];
 
-    // 照片與彈窗處理
     function handleImgClick(e, n) { const input = document.getElementById('pic' + n); if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } } }
     function handleAlbumClick(e) { const input = document.getElementById('album'); if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } } }
     function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
     function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
     
-    // 🔴 呼叫乾淨的自訂彈窗
-    function showItemModal(text) {
-      document.getElementById('modalItemText').innerText = text;
+    // 🔴 彈窗改為支援 HTML（為了支援條列式的換行）
+    function showItemModal(html) {
+      document.getElementById('modalItemText').innerHTML = html;
       document.getElementById('itemModal').style.display = 'flex';
     }
 
-    // 支付方式與 UI
     function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
     function renderFavCards() {
       const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join('');
@@ -261,37 +258,26 @@
     function updateAiItemAmt(i, v) { pendingAiRecords[i].localAmount = Number(v); calculateAiTotal(); }
     function calculateAiTotal() { document.getElementById('aiTotalInput').value = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0); }
 
+    // 🔴 儲存邏輯：無條件全部存細項，資料庫永遠是最完整的狀態
     async function saveAIResults() {
       if(pendingAiRecords.length === 0) return alert("無資料");
       const btn = document.getElementById('saveAiBtn'), mTotal = Number(document.getElementById('aiTotalInput').value);
-      const isSum = document.getElementById('saveSummaryOnly').checked, currency = document.getElementById('countryMode').value;
+      const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
+      const currency = document.getElementById('countryMode').value;
       const rate = Number(document.getElementById('currentRate').value) || 1, trip = document.getElementById('tripName').value;
       const payType = document.querySelector('input[name="aiPayType"]:checked').value, card = document.getElementById('aiCardName').value.trim();
       const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
 
       btn.disabled = true;
       try {
-        let toSave = [];
-        if (isSum) {
-          // 🔴 智慧合併：將同一店家的所有品項名稱串接起來
-          const groups = {};
-          pendingAiRecords.forEach(it => { 
-            const s = it.storeName || "AI辨識"; 
-            if(!groups[s]) groups[s] = {amt:0, cat:it.mainCategory, date:it.receiptDate, names:[]}; 
-            groups[s].amt += it.localAmount; 
-            if(it.chineseName) groups[s].names.push(it.chineseName); // 收集品項名稱
-          });
-          
-          Object.keys(groups).forEach(s => {
-            // 把品項名稱串起來當作標題
-            const combinedNames = groups[s].names.join('、');
-            toSave.push({ item: combinedNames, store: s, amount: groups[s].amt, category: groups[s].cat, date: groups[s].date })
-          });
-        } else {
-          pendingAiRecords.forEach(it => toSave.push({ item: it.chineseName, store: it.storeName || "AI辨識", amount: it.localAmount, category: it.mainCategory, date: it.receiptDate }));
+        let toSave = [...pendingAiRecords];
+        
+        // 若手動修正的總額不同，加入一筆差額調整
+        if (Math.abs(mTotal - calculatedTotal) > 0.01) {
+          toSave.push({ chineseName: "收據差額調整", storeName: pendingAiRecords[0]?.storeName || "系統補正", localAmount: Number((mTotal - calculatedTotal).toFixed(2)), mainCategory: "其他", receiptDate: pendingAiRecords[0]?.receiptDate });
         }
         
-        const records = toSave.map(r => ({ datetime: normalizeDateStr(r.date), item: r.item, store: r.store, amount: r.amount, currency, category: r.category, rate, trip, source: "AI", payment: payMethod }));
+        const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI辨識", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI", payment: payMethod }));
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
         alert("儲存成功！"); document.getElementById('aiPreviewArea').style.display = 'none'; resetForm(); refreshAll();
@@ -308,12 +294,13 @@
       btn.disabled = true;
       try {
         const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
-        await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
-        document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！"); refreshAll();
+        const data = await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
+        if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！"); refreshAll(); }
       } catch (e) { alert("失敗"); }
       finally { btn.disabled = false; }
     }
 
+    // 🔴 刷新邏輯：前端智慧摺疊 (Group by groupId)
     async function refreshAll() {
       const trip = document.getElementById('tripName').value;
       try {
@@ -323,20 +310,49 @@
           renderChart(data.categories); 
           document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('') || "暫無統計";
         }
+        
         const recent = await apiPost({ action: "get_recent", trip });
         if (recent.success) {
-          // 🔴 點擊明細時，觸發自訂的不囉唆彈窗
-          document.getElementById('recentList').innerHTML = recent.records.map(r => `
-            <div class="detail-item" onclick="showItemModal('${r.item.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
-              <div class="detail-info"><b>${r.item}</b><br><small>${new Date(r.datetime).toLocaleDateString()} ${r.payment.startsWith('card:')?'💳':'💵'}</small></div>
-              <div class="detail-amt">${r.amount} ${r.currency}</div>
-              <button onclick="event.stopPropagation(); confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
-            </div>`).join('') || "無紀錄";
+          const groups = {};
+          // 遍歷所有細項，依據後端發放的 groupId 進行打包
+          recent.records.forEach(r => {
+            const gid = r.groupId || r.uuid; // 若舊資料無 groupId，則自己單獨一組
+            if (!groups[gid]) {
+              groups[gid] = { store: r.store, payment: r.payment, datetime: r.datetime, currency: r.currency, totalAmount: 0, items: [], uuids: [] };
+            }
+            groups[gid].totalAmount += Number(r.amount);
+            groups[gid].items.push(`▪️ ${r.item} ($${r.amount})`);
+            groups[gid].uuids.push(r.uuid); // 收集這個群組所有的 uuid，方便一次刪除
+          });
+
+          // 渲染合併後的方塊
+          document.getElementById('recentList').innerHTML = Object.values(groups).map(g => {
+            const uuidsStr = g.uuids.join(','); // 轉字串給 onclick 使用
+            const modalHtml = g.items.join('<br>').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const itemCountStr = g.items.length > 1 ? `(共${g.items.length}項)` : '';
+            return `
+            <div class="detail-item" onclick="showItemModal('${modalHtml}')">
+              <div class="detail-info">
+                <b>${g.store}</b><br>
+                <small>${new Date(g.datetime).toLocaleDateString()} ${g.payment.startsWith('card:')?'💳':'💵'} ${itemCountStr}</small>
+              </div>
+              <div class="detail-amt">${Number(g.totalAmount.toFixed(2))} ${g.currency}</div>
+              <button onclick="event.stopPropagation(); confirmDelete('${uuidsStr}')" class="del-btn">🗑️</button>
+            </div>`;
+          }).join('') || "無紀錄";
         }
       } catch (e) {}
     }
 
-    async function confirmDelete(uuid) { if (confirm("確定刪除？")) { const res = await apiPost({ action: "delete_record", uuid, token: APP_TOKEN }); if (res.success) refreshAll(); } }
+    // 🔴 刪除邏輯：支援傳送陣列 (uuids) 給後端，一次刪除整個群組
+    async function confirmDelete(uuidsStr) { 
+      if (confirm("確定刪除此紀錄？")) { 
+        const uuids = uuidsStr.split(',');
+        const res = await apiPost({ action: "delete_record", uuids: uuids, token: APP_TOKEN }); 
+        if (res.success) refreshAll(); 
+      } 
+    }
+    
     function renderChart(catData) { const ctx = document.getElementById('expenseChart').getContext('2d'); if (chartInstance) chartInstance.destroy(); chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } } }); }
     async function compressImg(f) { return new Promise(res => { const r = new FileReader(); r.readAsDataURL(f); r.onload = e => { const i = new Image(); i.src = e.target.result; i.onload = () => { const c = document.createElement('canvas'); let w = i.width, h = i.height, m = 800; if (w > h) { if (w > m) { h *= m/w; w = m; } } else { if (h > m) { w *= m/h; h = m; } } c.width = w; c.height = h; c.getContext('2d').drawImage(i, 0, 0, w, h); res(c.toDataURL('image/jpeg', 0.6).split(',')[1]); }; }; }); }
     function resetForm() { document.querySelectorAll('.upload-btn').forEach(l => { l.style.backgroundImage='none'; l.innerHTML='拍照片'; }); document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; ['pic1', 'pic2', 'pic3', 'album'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; }); }
