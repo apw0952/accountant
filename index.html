@@ -50,7 +50,8 @@
     
     .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; }
     .detail-item:active { background: #f0f0f0; }
-    .detail-info { flex: 1; }
+    .detail-info { flex: 1; overflow: hidden; }
+    .detail-info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90%; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
     .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; padding: 10px; }
     
@@ -60,6 +61,12 @@
     #chartContainer { position: relative; height: 220px; width: 100%; margin-bottom: 20px; }
     
     .pay-stat-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px dashed #eee; font-size: 14px; }
+
+    /* 🔴 新增：乾淨極簡的自訂彈窗樣式 */
+    #itemModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+    .modal-content { background: white; padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; }
+    .modal-content p { font-size: 16px; color: #333; line-height: 1.6; word-wrap: break-word; margin-bottom: 20px; text-align: left; }
   </style>
 </head>
 <body>
@@ -117,7 +124,6 @@
         <div id="mFavCardsContainer" style="margin-top:8px;"></div>
       </div>
       <button id="manualBtn" class="btn btn-outline" onclick="submitManual()">送出單筆記帳</button>
-      <div id="manualStatus" style="margin-top:10px; font-size:14px; text-align:center;"></div>
     </div>
 
     <div class="card">
@@ -146,7 +152,7 @@
         </div>
         <div id="aiCardArea" style="display:none; background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:15px;">
           <div style="display:flex; gap:5px;"><input type="text" id="aiCardName" list="bankList" placeholder="卡名..." style="margin-bottom:0;"><button onclick="addFavCard('aiCardName')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:0 12px; white-space:nowrap;">+ 常用</button></div>
-          <div id="aiFavCardsContainer" style="margin-top:10px;"></div>
+          <div id="aiFavCardsContainer" style="margin-top:8px;"></div>
         </div>
         <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認無誤，送出 ✅</button>
       </div>
@@ -175,13 +181,39 @@
     <div class="card"><div class="section-title">📋 最近明細 (點擊查看詳情)</div><div id="recentList" style="max-height: 500px; overflow-y: auto;"></div></div>
   </div>
 
+  <div id="itemModal" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation();">
+      <h3>🛍️ 購買內容</h3>
+      <p id="modalItemText"></p>
+      <button onclick="document.getElementById('itemModal').style.display='none'" class="btn btn-outline" style="padding:10px;">關閉</button>
+    </div>
+  </div>
+
   <script>
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
     const APP_TOKEN = "ai-travel-2026"; 
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["國泰 CUBE卡"];
 
-    // 🔴 功能 1: 重新整理與同步邏輯
+    // 照片與彈窗處理
+    function handleImgClick(e, n) { const input = document.getElementById('pic' + n); if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } } }
+    function handleAlbumClick(e) { const input = document.getElementById('album'); if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } } }
+    function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
+    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
+    
+    // 🔴 呼叫乾淨的自訂彈窗
+    function showItemModal(text) {
+      document.getElementById('modalItemText').innerText = text;
+      document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    // 支付方式與 UI
+    function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
+    function renderFavCards() {
+      const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join('');
+      document.getElementById('mFavCardsContainer').innerHTML = html;
+      document.getElementById('aiFavCardsContainer').innerHTML = html;
+    }
     function selectFavCard(cardName) { document.getElementById('mCardName').value = cardName; document.getElementById('aiCardName').value = cardName; }
     function togglePayUI(prefix) {
       const isCard = document.querySelector(`input[name="${prefix}PayType"]:checked`).value === 'card';
@@ -191,30 +223,25 @@
       });
       if(isCard) renderFavCards();
     }
-    
-    // 🔴 功能 2: 圖片處理
-    function handleImgClick(e, n) { const input = document.getElementById('pic' + n); if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } } }
-    function handleAlbumClick(e) { const input = document.getElementById('album'); if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } } }
-    function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
-    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
+    function addFavCard(id) { const val = document.getElementById(id).value.trim(); if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); } }
+    function deleteFavCard(i) { favoriteCards.splice(i, 1); saveFavCards(); renderFavCards(); }
 
-    // 🔴 功能 3: API 與數據
-    async function apiPost(p) { const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(p) }); if (!r.ok) throw new Error("連線失敗"); return await r.json(); }
+    async function apiPost(payload) { const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); if (!res.ok) throw new Error(`連線失敗: ${res.status}`); return await res.json(); }
     function normalizeDateStr(d) { let p = d ? new Date(d.replace(" ", "T")) : new Date(); if (isNaN(p.getTime())) p = new Date(); const o = p.getTimezoneOffset() * 60000; return new Date(p - o).toISOString().slice(0, -1); }
 
     async function submitAI() {
       const btn = document.getElementById('aiBtn'), status = document.getElementById('aiStatus');
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
       if (allFiles.length === 0) return alert("請拍照片！");
-      btn.disabled = true; btn.innerText = "⏳ 傳輸中...";
+      btn.disabled = true; btn.innerText = "⏳ 正在傳輸照片...";
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
-        status.innerText = "🧠 AI 正在解析圖片內容...";
+        status.innerText = "🧠 AI 正在分析內容，請稍候...";
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
         pendingAiRecords = data.items;
         renderAIPreview();
-        status.innerHTML = "💡 解析完成！";
+        status.innerHTML = "💡 解析完成，請檢查並送出。";
       } catch (err) { status.innerHTML = `<button onclick="submitAI()" style="background:#ff4d4f; color:white; border:none; padding:8px 15px; border-radius:8px;">❌ ${err.message} (點我重試)</button>`; }
       finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
     }
@@ -236,20 +263,34 @@
 
     async function saveAIResults() {
       if(pendingAiRecords.length === 0) return alert("無資料");
-      const btn = document.getElementById('saveAiBtn'), isSum = document.getElementById('saveSummaryOnly').checked;
-      const currency = document.getElementById('countryMode').value, rate = Number(document.getElementById('currentRate').value) || 1, trip = document.getElementById('tripName').value;
+      const btn = document.getElementById('saveAiBtn'), mTotal = Number(document.getElementById('aiTotalInput').value);
+      const isSum = document.getElementById('saveSummaryOnly').checked, currency = document.getElementById('countryMode').value;
+      const rate = Number(document.getElementById('currentRate').value) || 1, trip = document.getElementById('tripName').value;
       const payType = document.querySelector('input[name="aiPayType"]:checked').value, card = document.getElementById('aiCardName').value.trim();
       const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
+
       btn.disabled = true;
       try {
         let toSave = [];
         if (isSum) {
+          // 🔴 智慧合併：將同一店家的所有品項名稱串接起來
           const groups = {};
-          pendingAiRecords.forEach(it => { const s = it.storeName || "AI辨識"; if(!groups[s]) groups[s] = {amt:0, cat:it.mainCategory, date:it.receiptDate}; groups[s].amt += it.localAmount; });
-          Object.keys(groups).forEach(s => toSave.push({ item: `收據總計 (${s})`, store: s, amount: groups[s].amt, category: groups[s].cat, date: groups[s].date }));
+          pendingAiRecords.forEach(it => { 
+            const s = it.storeName || "AI辨識"; 
+            if(!groups[s]) groups[s] = {amt:0, cat:it.mainCategory, date:it.receiptDate, names:[]}; 
+            groups[s].amt += it.localAmount; 
+            if(it.chineseName) groups[s].names.push(it.chineseName); // 收集品項名稱
+          });
+          
+          Object.keys(groups).forEach(s => {
+            // 把品項名稱串起來當作標題
+            const combinedNames = groups[s].names.join('、');
+            toSave.push({ item: combinedNames, store: s, amount: groups[s].amt, category: groups[s].cat, date: groups[s].date })
+          });
         } else {
           pendingAiRecords.forEach(it => toSave.push({ item: it.chineseName, store: it.storeName || "AI辨識", amount: it.localAmount, category: it.mainCategory, date: it.receiptDate }));
         }
+        
         const records = toSave.map(r => ({ datetime: normalizeDateStr(r.date), item: r.item, store: r.store, amount: r.amount, currency, category: r.category, rate, trip, source: "AI", payment: payMethod }));
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
@@ -267,8 +308,8 @@
       btn.disabled = true;
       try {
         const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
-        const data = await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
-        if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！"); refreshAll(); }
+        await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
+        document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！"); refreshAll();
       } catch (e) { alert("失敗"); }
       finally { btn.disabled = false; }
     }
@@ -284,8 +325,9 @@
         }
         const recent = await apiPost({ action: "get_recent", trip });
         if (recent.success) {
+          // 🔴 點擊明細時，觸發自訂的不囉唆彈窗
           document.getElementById('recentList').innerHTML = recent.records.map(r => `
-            <div class="detail-item" onclick="alert('🏪 店家：${r.store}\\n🍱 品項：${r.item}\\n📂 分類：${r.category}\\n💳 支付：${r.payment}\\n🕒 時間：${new Date(r.datetime).toLocaleString()}')">
+            <div class="detail-item" onclick="showItemModal('${r.item.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">
               <div class="detail-info"><b>${r.item}</b><br><small>${new Date(r.datetime).toLocaleDateString()} ${r.payment.startsWith('card:')?'💳':'💵'}</small></div>
               <div class="detail-amt">${r.amount} ${r.currency}</div>
               <button onclick="event.stopPropagation(); confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
@@ -302,16 +344,11 @@
     function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
     function handleCountryChange() { const sel = document.getElementById('countryMode'); document.getElementById('currentRate').value = sel.options[sel.selectedIndex].dataset.rate; fetchLiveRate(); }
     async function fetchLiveRate() { const curr = document.getElementById('countryMode').value; if (curr === "TWD") { document.getElementById('currentRate').value = 1; return; } try { const res = await fetch(`https://open.er-api.com/v6/latest/${curr}`); const data = await res.json(); if (data.rates?.TWD) document.getElementById('currentRate').value = data.rates.TWD.toFixed(4); } catch (e) {} }
-    function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
-    function renderFavCards() { const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join(''); document.getElementById('mFavCardsContainer').innerHTML = html; document.getElementById('aiFavCardsContainer').innerHTML = html; }
-    function addFavCard(id) { const val = document.getElementById(id).value.trim(); if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); } }
-    function deleteFavCard(i) { favoriteCards.splice(i, 1); saveFavCards(); renderFavCards(); }
-    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
     
-    // 雙向同步卡名
     document.getElementById('mCardName').addEventListener('input', e => { document.getElementById('aiCardName').value = e.target.value; });
     document.getElementById('aiCardName').addEventListener('input', e => { document.getElementById('mCardName').value = e.target.value; });
     
+    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
     window.onload = setDefaultTime;
   </script>
 </body>
