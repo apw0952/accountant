@@ -348,7 +348,7 @@
       try { const res = await fetch(`https://open.er-api.com/v6/latest/${curr}`); const data = await res.json(); if (data.rates?.TWD) document.getElementById('currentRate').value = data.rates.TWD.toFixed(4); } catch (e) {}
     }
     function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
-    window.onload = setDefaultTime;
+    window.onload = setDefaultTime; 
   </script>
 </body>
 </html>
