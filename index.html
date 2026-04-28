@@ -16,7 +16,7 @@
     .tab-content { display: none; padding: 20px; }
     .tab-content.active { display: block; }
     .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-    .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
+    .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; justify-content: space-between; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
     
     .quick-entry-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; white-space: nowrap; }
@@ -33,7 +33,6 @@
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
     
-    /* 🔴 已套用修正：防止手機版現金/刷卡斷行重疊 */
     .pay-method-group { display: flex; gap: 25px; margin: 10px 0 15px 5px; align-items: center; }
     .pay-radio { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .pay-radio input[type="radio"] { width: 20px; height: 20px; margin: 0; cursor: pointer; accent-color: var(--primary); }
@@ -42,16 +41,16 @@
     .fav-card-del { margin-left: 5px; color: #ff4d4f; cursor: pointer; font-weight: bold; }
     
     #aiPreviewArea { margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; display: none; }
-    .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
+    .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); transition: border-color 0.3s; }
     .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; width: 100%; }
     
     .ai-summary-row { background: #fff4e5; padding: 15px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 2px solid #f29900; }
     .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 140px; text-align: right; }
     
-    .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
-    .detail-info { flex: 1; }
+    .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid #eee; }
+    .detail-info { flex: 1; line-height: 1.4; }
     .detail-amt { font-weight: bold; color: var(--primary); text-align: right; margin-right: 10px; }
-    .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; }
+    .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; padding: 5px; }
     
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
@@ -81,7 +80,7 @@
 
   <div id="record" class="tab-content active">
     <div class="card">
-      <div class="section-title">✈️ 旅程與匯率設定</div>
+      <div class="section-title"><span>✈️ 旅程與匯率設定</span></div>
       <input type="text" id="tripName" placeholder="旅程名稱" value="我的旅行">
       <div style="display: flex; gap: 10px; align-items: center;">
         <div style="flex: 2;">
@@ -99,7 +98,7 @@
     </div>
 
     <div class="card">
-      <div class="section-title">⚡ 快速手動輸入</div>
+      <div class="section-title"><span>⚡ 快速手動輸入</span></div>
       <div class="quick-entry-row">
         <input type="date" id="mDate">
         <input type="time" id="mTime">
@@ -107,10 +106,12 @@
           <option value="食">🍕 食</option><option value="衣">👕 衣</option><option value="住">🏠 住</option>
           <option value="行">🚗 行</option><option value="育">📚 育</option><option value="樂">🎡 樂</option><option value="其他" selected>❓ 其他</option>
         </select>
-        <input type="text" id="mItem" placeholder="品項"><input type="number" id="mAmt" placeholder="金額">
+        <input type="text" id="mStore" placeholder="店名(選填)">
+        <input type="text" id="mItem" placeholder="品項">
+        <input type="number" id="mAmt" placeholder="金額">
       </div>
       
-      <div class="section-title" style="margin-top:15px;">💳 支付方式</div>
+      <div class="section-title" style="margin-top:15px;"><span>💳 支付方式</span></div>
       <div class="pay-method-group">
         <label class="pay-radio"><input type="radio" name="mPayType" value="cash" checked onchange="togglePayUI('m')"> <span>現金</span></label>
         <label class="pay-radio"><input type="radio" name="mPayType" value="card" onchange="togglePayUI('m')"> <span>刷卡</span></label>
@@ -128,7 +129,7 @@
     </div>
 
     <div class="card">
-      <div class="section-title">📸 AI 拍照辨識</div>
+      <div class="section-title"><span>📸 AI 拍照辨識</span></div>
       <div class="camera-grid">
         <label for="pic1" class="upload-btn" id="lbl1" onclick="handleImgClick(event, 1)">拍照片</label>
         <input type="file" id="pic1" accept="image/*" capture="environment" onchange="previewImg(1)">
@@ -146,7 +147,7 @@
       <div id="aiStatus" style="margin-top:10px; font-size:14px; color:#555; text-align:center;"></div>
       
       <div id="aiPreviewArea">
-        <div class="section-title">🔍 請確認辨識結果</div>
+        <div class="section-title"><span>🔍 請確認辨識結果</span></div>
         
         <div style="margin-bottom:15px; background:#f0f7ff; padding:10px; border-radius:10px; font-size:14px;">
            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
@@ -166,7 +167,7 @@
           </div>
         </div>
 
-        <div class="section-title" style="margin-top:15px;">💳 支付方式</div>
+        <div class="section-title" style="margin-top:15px;"><span>💳 支付方式</span></div>
         <div class="pay-method-group">
           <label class="pay-radio"><input type="radio" name="aiPayType" value="cash" checked onchange="togglePayUI('ai')"> <span>現金</span></label>
           <label class="pay-radio"><input type="radio" name="aiPayType" value="card" onchange="togglePayUI('ai')"> <span>刷卡</span></label>
@@ -186,7 +187,10 @@
 
   <div id="report" class="tab-content">
     <div class="card">
-      <div class="section-title">📅 選擇期間</div>
+      <div class="section-title">
+        <span>📅 選擇期間</span>
+        <button onclick="refreshAll()" style="background:none; border:none; cursor:pointer; font-size:18px;" title="重新整理">🔄</button>
+      </div>
       <select id="dateRange" onchange="toggleCustomDate(); refreshAll();">
         <option value="today">本日</option><option value="month" selected>本月</option><option value="custom">自訂區間</option>
       </select>
@@ -200,22 +204,23 @@
       <div id="chartContainer"><canvas id="expenseChart"></canvas></div>
       
       <div style="margin-top:20px; background:#f4f7f6; border-radius:10px; padding:15px;">
-        <div class="section-title" style="margin-bottom:5px;">💳 支付方式統計 (TWD)</div>
+        <div class="section-title" style="margin-bottom:5px;"><span>💳 支付方式統計 (TWD)</span></div>
         <div id="paymentStatsList"></div>
       </div>
     </div>
-    <div class="card"><div class="section-title">📋 最近明細</div><div id="recentList" style="max-height: 400px; overflow-y: auto;"></div></div>
+    <div class="card">
+      <div class="section-title"><span>📋 最近明細</span></div>
+      <div id="recentList" style="max-height: 450px; overflow-y: auto;"></div>
+    </div>
   </div>
 
   <script>
-    // 🔴 確保此 URL 是你剛剛部署「新版本」後的正確網址
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
     const APP_TOKEN = "ai-travel-2026"; 
     
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["富邦 J卡", "國泰 CUBE卡"];
     
-    // 🔴 點擊照片時觸發移除確認
     function handleImgClick(e, n) {
       const input = document.getElementById('pic' + n);
       if (input.files && input.files.length > 0) {
@@ -229,7 +234,6 @@
       }
     }
 
-    // 🔴 點擊相簿時觸發移除確認
     function handleAlbumClick(e) {
       const input = document.getElementById('album');
       if (input.files && input.files.length > 0) {
@@ -252,7 +256,6 @@
       document.getElementById('aiFavCardsContainer').innerHTML = html;
     }
     
-    // 🔴 全域同步：點擊常用卡片時同步兩區
     function selectFavCard(cardName) {
       if(document.querySelector('input[name="mPayType"]:checked')?.value === 'card') {
         document.getElementById('mCardName').value = cardName;
@@ -268,7 +271,6 @@
     }
     function deleteFavCard(index) { favoriteCards.splice(index, 1); saveFavCards(); renderFavCards(); }
     
-    // 🔴 全域同步：切換現金/刷卡時互相連動
     function togglePayUI(prefix) {
       const el = document.querySelector(`input[name="${prefix}PayType"]:checked`);
       const isCard = el && el.value === 'card';
@@ -304,6 +306,15 @@
       return `<span style="color:#1a73e8;">💳 ${payStr}</span>`;
     }
 
+    // 取得給 input[type="date"] 用的安全字串
+    function getSafeDateStr(d) {
+      if(!d) return new Date().toISOString().split('T')[0];
+      const parsed = new Date(d.replace(" ", "T"));
+      if(isNaN(parsed)) return new Date().toISOString().split('T')[0];
+      const tzOffset = parsed.getTimezoneOffset() * 60000;
+      return new Date(parsed - tzOffset).toISOString().split('T')[0];
+    }
+    // API 用：取得精確 ISO string
     function normalizeDateStr(d) {
       let parsed = d ? new Date(d.replace(" ", "T")) : new Date();
       if (isNaN(parsed.getTime())) parsed = new Date();
@@ -379,9 +390,29 @@
       const container = document.getElementById('aiItemList'); container.innerHTML = "";
       document.getElementById('aiPreviewArea').style.display = 'block';
       document.getElementById('aiCurrencyLabel').innerText = document.getElementById('countryMode').value;
+      
+      // 🔴 AI 多店顏色交替邏輯
+      const colors = ['#1a73e8', '#f29900', '#34a853', '#9c27b0'];
+      let currentStore = null;
+      let colorIdx = -1;
+
       pendingAiRecords.forEach((item, index) => {
-        const div = document.createElement('div'); div.className = 'preview-item';
-        div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${index}].chineseName=this.value">
+        if (item.storeName !== currentStore) {
+          colorIdx = (colorIdx + 1) % colors.length;
+          currentStore = item.storeName;
+        }
+        
+        const div = document.createElement('div'); 
+        div.className = 'preview-item';
+        div.style.borderLeftColor = colors[colorIdx]; // 讓同店家的框格維持同色
+        
+        // 🔴 預覽區新增：暴露出 店名 與 日期 供使用者直接除錯！
+        div.innerHTML = `
+          <div style="display:flex; gap:5px; margin-bottom:5px;">
+            <input type="text" value="${item.storeName || ''}" placeholder="店鋪名稱" onchange="pendingAiRecords[${index}].storeName=this.value" style="flex:6; font-size:12px; padding:6px;">
+            <input type="date" value="${getSafeDateStr(item.receiptDate)}" onchange="pendingAiRecords[${index}].receiptDate=this.value" style="flex:5; font-size:12px; padding:6px; color:#555;">
+          </div>
+          <input type="text" value="${item.chineseName}" placeholder="品項" onchange="pendingAiRecords[${index}].chineseName=this.value">
           <div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${index}, this.value)">
           <select onchange="pendingAiRecords[${index}].mainCategory=this.value">
             <option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option>
@@ -470,7 +501,10 @@
     async function submitManual() {
       const btn = document.getElementById('manualBtn');
       const item = document.getElementById('mItem').value.trim(), amt = Number(document.getElementById('mAmt').value);
-      if(!item || !amt) return alert("填寫品項與金額");
+      // 🔴 手動輸入時抓取新加的店名欄位
+      const storeName = document.getElementById('mStore').value.trim() || "手動";
+      
+      if(!item || !amt) return alert("請填寫品項與金額");
       
       const payMethod = getPaymentMethod('m'); 
       const rate = Number(document.getElementById('currentRate').value) || 1;
@@ -480,16 +514,17 @@
         const payloadDate = normalizeDateStr(`${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`);
         const data = await apiPost({ action: "add_records", records: [{
           datetime: payloadDate,
-          item, amount: amt, store: "手動",
+          item, amount: amt, store: storeName,
           currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value,
           rate: rate, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod
         }]});
-        document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; alert("成功！");
+        document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！");
       } catch (e) { alert("失敗"); }
       finally { btn.disabled = false; }
     }
 
     async function refreshAll() { fetchStats(); fetchRecent(); }
+    
     async function fetchStats() {
       try {
         const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip: document.getElementById('tripName').value, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
@@ -506,19 +541,39 @@
       } catch (e) { }
     }
     
+    // 🔴 視覺化分群：解決清單混亂的完美 UI，讓明細一目了然
     async function fetchRecent() {
       try {
         const data = await apiPost({ action: "get_recent", trip: document.getElementById('tripName').value });
         const list = document.getElementById('recentList');
-        if (!data.success || data.records.length === 0) { list.innerHTML = "無紀錄"; return; }
-        list.innerHTML = data.records.map(r => `<div class="detail-item">
-          <div class="detail-info">
-            <b>${r.item}</b> <small>(${r.category})</small><br>
-            <small style="font-weight:bold;">${renderPaymentDisplay(r.payment)}</small> <small style="color:#aaa; margin-left:5px;">${new Date(r.datetime).toLocaleDateString()}</small>
-          </div>
-          <div class="detail-amt">${r.amount} <small>${r.currency}</small></div>
-          <button onclick="confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
-        </div>`).join('');
+        if (!data.success || data.records.length === 0) { list.innerHTML = "<div style='padding:20px;text-align:center;color:#999;'>暫無紀錄</div>"; return; }
+        
+        let html = '';
+        let lastHeader = '';
+
+        data.records.forEach(r => {
+          let dateStr = new Date(r.datetime).toLocaleDateString();
+          let safeStore = r.store || "未知店家";
+          let header = `${safeStore}_${dateStr}`;
+
+          // 若遇到不同店家或日期，插入一個清晰的「群組標題區塊」
+          if (header !== lastHeader) {
+            html += `<div style="background:#e8f0fe; padding:6px 12px; font-size:13px; font-weight:bold; color:#1a73e8; margin-top:12px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                       🏪 ${safeStore} <span style="float:right; color:#888; font-weight:normal; font-size:11px; margin-top:2px;">${dateStr}</span>
+                     </div>`;
+            lastHeader = header;
+          }
+
+          html += `<div class="detail-item">
+            <div class="detail-info">
+              <b>${r.item}</b> <small style="color:#888;">(${r.category})</small><br>
+              <small style="font-weight:bold; margin-top:4px; display:inline-block;">${renderPaymentDisplay(r.payment)}</small>
+            </div>
+            <div class="detail-amt">${r.amount} <small>${r.currency}</small></div>
+            <button onclick="confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
+          </div>`;
+        });
+        list.innerHTML = html;
       } catch (e) { }
     }
     
@@ -538,7 +593,6 @@
     function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
     function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
     
-    // 🔴 降低壓縮率防爆：800px / 0.6 品質
     async function compressImg(file) {
       return new Promise(resolve => {
         const reader = new FileReader(); reader.readAsDataURL(file);
@@ -555,7 +609,6 @@
       });
     }
     
-    // 🔴 徹底清空快取避免無法再次點擊
     function resetForm() { 
       document.querySelectorAll('.upload-btn').forEach(l => {
         l.style.backgroundImage='none'; 
@@ -572,7 +625,6 @@
     function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
     function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
     
-    // 🔴 雙向同步：手動打字也能互相影響
     document.getElementById('mCardName').addEventListener('input', function(e) {
       document.getElementById('aiCardName').value = e.target.value;
     });
