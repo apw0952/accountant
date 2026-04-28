@@ -3,28 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AI 旅伴記帳</title>
+  <title>AI 旅伴記帳助手</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root { --primary: #34a853; --bg: #f4f7f6; --text: #333; --accent: #1a73e8; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 20px; }
-    
-    /* 🔴 Header 優化：加入全域重新整理按鈕 */
-    .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; flex-direction: column; }
-    .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .title { font-size: 20px; font-weight: bold; color: var(--primary); margin: 0; }
-    .global-refresh { background: #eee; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; font-size: 16px; }
-
+    .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
+    .title { font-size: 22px; font-weight: bold; color: var(--primary); text-align: center; margin-bottom: 15px; }
     .tabs { display: flex; gap: 10px; }
     .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; color: #888; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: 0.3s; }
     .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
-    .tab-content { display: none; padding: 15px; }
+    .tab-content { display: none; padding: 20px; }
     .tab-content.active { display: block; }
-    .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+    .card { background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
     
-    /* 手動輸入區：改為兩列佈局，塞入店名 */
     .manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
     .manual-grid input, .manual-grid select { margin-bottom: 0; }
     .full-row { grid-column: span 2; }
@@ -40,10 +34,9 @@
     .overlay { background: rgba(0,0,0,0.5); color: white; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 20px; }
     input[type="file"] { display: none; }
     
-    /* 🔴 已套用修正：補回遺失的 Radio Button 強制鎖定樣式 */
-    .pay-method-group { display: flex; gap: 20px; margin: 5px 0 15px 5px; align-items: center; }
+    .pay-method-group { display: flex; gap: 25px; margin: 10px 0 15px 5px; align-items: center; }
     .pay-radio { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; cursor: pointer; white-space: nowrap; }
-    .pay-radio input[type="radio"] { width: 20px; height: 20px; margin: 0; flex-shrink: 0; cursor: pointer; accent-color: var(--primary); }
+    .pay-radio input[type="radio"] { width: 20px; height: 20px; margin: 0; cursor: pointer; accent-color: var(--primary); }
     
     .fav-card-chip { display: inline-block; background: #e8f0fe; color: #1a73e8; padding: 6px 12px; border-radius: 20px; font-size: 12px; margin: 4px; cursor: pointer; border: 1px solid #d2e3fc; }
     .fav-card-del { margin-left: 5px; color: #ff4d4f; cursor: pointer; font-weight: bold; }
@@ -53,9 +46,8 @@
     .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; width: 100%; }
     
     .ai-summary-row { background: #fff4e5; padding: 15px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 2px solid #f29900; }
-    .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 120px; text-align: right; }
+    .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 140px; text-align: right; }
     
-    /* 明細樣式優化：可點擊感 */
     .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; }
     .detail-item:active { background: #f0f0f0; }
     .detail-info { flex: 1; }
@@ -63,12 +55,11 @@
     .del-btn { color: #ff4d4f; font-size: 18px; cursor: pointer; background: none; border: none; padding: 10px; }
     
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; position: relative;}
+    .refresh-btn { position: absolute; right: 15px; top: 15px; background: white; border: 1px solid #ddd; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; }
     #chartContainer { position: relative; height: 220px; width: 100%; margin-bottom: 20px; }
     
-    /* 錯誤訊息樣式：加入清除按鈕 */
-    .status-error { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; line-height: 1.5; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-    .retry-btn { background: #d32f2f; color: white; border: none; padding: 5px 15px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+    .pay-stat-item { display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px dashed #eee; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -79,13 +70,10 @@
   </datalist>
 
   <div class="header">
-    <div class="header-top">
-      <div class="title">📒 AI 旅伴記帳助手</div>
-      <button class="global-refresh" onclick="window.location.reload()" title="重新整理網頁">🔄</button>
-    </div>
+    <div class="title">📒 AI 旅伴記帳助手</div>
     <div class="tabs">
-      <button class="tab-btn active" id="tab-record" onclick="switchTab('record')">📝 記帳</button>
-      <button class="tab-btn" id="tab-report" onclick="switchTab('report')">📊 分析報表</button>
+      <button class="tab-btn active" onclick="switchTab('record')">📝 記帳</button>
+      <button class="tab-btn" onclick="switchTab('report')">📊 分析報表</button>
     </div>
   </div>
 
@@ -99,13 +87,9 @@
           <option value="JPY" data-rate="0.21">🇯🇵 日本 (JPY)</option>
           <option value="KRW" data-rate="0.024">🇰🇷 韓國 (KRW)</option>
           <option value="USD" data-rate="32.5">🇺🇸 美金 (USD)</option>
-          <option value="EUR" data-rate="35.0">🇪🇺 歐元 (EUR)</option>
-          <option value="GBP" data-rate="40.0">🇬🇧 英鎊 (GBP)</option>
-          <option value="CNY" data-rate="4.4">🇨🇳 人民幣 (CNY)</option>
-          <option value="HKD" data-rate="4.1">🇭🇰 港幣 (HKD)</option>
-          <option value="THB" data-rate="0.9">🇹🇭 泰銖 (THB)</option>
         </select>
         <input type="number" id="currentRate" step="0.0001" placeholder="匯率" style="flex: 1; margin-bottom:0;">
+        <button onclick="fetchLiveRate()" style="background:none; border:none; color:var(--accent); font-size:18px; cursor:pointer;">🔄</button>
       </div>
     </div>
 
@@ -133,6 +117,7 @@
         <div id="mFavCardsContainer" style="margin-top:8px;"></div>
       </div>
       <button id="manualBtn" class="btn btn-outline" onclick="submitManual()">送出單筆記帳</button>
+      <div id="manualStatus" style="margin-top:10px; font-size:14px; text-align:center;"></div>
     </div>
 
     <div class="card">
@@ -144,7 +129,7 @@
       </div>
       <label for="album" class="album-btn" id="albumLbl" onclick="handleAlbumClick(event)">🖼️ 從相簿多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
       <button id="aiBtn" class="btn" onclick="submitAI()">AI 智慧解析 ✨</button>
-      <div id="aiStatus" style="margin-top:10px; text-align:center;"></div>
+      <div id="aiStatus" style="margin-top:10px; font-size:13px; color:#666; text-align:center;"></div>
       
       <div id="aiPreviewArea">
         <div class="section-title">🔍 確認結果</div>
@@ -161,10 +146,9 @@
         </div>
         <div id="aiCardArea" style="display:none; background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:15px;">
           <div style="display:flex; gap:5px;"><input type="text" id="aiCardName" list="bankList" placeholder="卡名..." style="margin-bottom:0;"><button onclick="addFavCard('aiCardName')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:0 12px; white-space:nowrap;">+ 常用</button></div>
-          <div id="aiFavCardsContainer" style="margin-top:8px;"></div>
+          <div id="aiFavCardsContainer" style="margin-top:10px;"></div>
         </div>
         <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認無誤，送出 ✅</button>
-        <button class="btn btn-outline" style="margin-top:10px; border-color:#ccc; color:#666;" onclick="resetForm()">❌ 取消並清空照片</button>
       </div>
     </div>
   </div>
@@ -178,13 +162,17 @@
       <div id="customDateContainer" style="display: none; gap: 5px; margin-top: 10px;"><input type="date" id="startDate" onchange="refreshAll()"><input type="date" id="endDate" onchange="refreshAll()"></div>
       
       <div class="summary-box">
+        <div class="refresh-btn" onclick="refreshAll()">🔄</div>
         <div style="font-size:14px; color:#666;">期間總花費 (TWD)</div>
         <div class="total-amt" id="totalSpent">NT$ 0</div>
       </div>
       <div id="chartContainer"><canvas id="expenseChart"></canvas></div>
-      <div id="paymentStatsList" class="card" style="padding:10px; background:#f9f9f9;"></div>
+      <div style="margin-top:10px; background:#f9f9f9; border-radius:10px; padding:12px;">
+        <div class="section-title">💳 支付統計 (TWD)</div>
+        <div id="paymentStatsList"></div>
+      </div>
     </div>
-    <div class="card"><div class="section-title">📋 最近明細 (點擊顯示內容)</div><div id="recentList" style="max-height: 500px; overflow-y: auto;"></div></div>
+    <div class="card"><div class="section-title">📋 最近明細 (點擊查看詳情)</div><div id="recentList" style="max-height: 500px; overflow-y: auto;"></div></div>
   </div>
 
   <script>
@@ -193,69 +181,41 @@
     let chartInstance = null, pendingAiRecords = [];
     let favoriteCards = JSON.parse(localStorage.getItem('myFavCards')) || ["國泰 CUBE卡"];
 
-    function handleImgClick(e, n) {
-      const input = document.getElementById('pic' + n);
-      if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } }
-    }
-    function handleAlbumClick(e) {
-      const input = document.getElementById('album');
-      if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } }
-    }
-    function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
-    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
-
-    function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
-    function renderFavCards() {
-      const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join('');
-      document.getElementById('mFavCardsContainer').innerHTML = html;
-      document.getElementById('aiFavCardsContainer').innerHTML = html;
-    }
-    function selectFavCard(cardName) {
-      document.getElementById('mCardName').value = cardName;
-      document.getElementById('aiCardName').value = cardName;
-    }
+    // 🔴 功能 1: 重新整理與同步邏輯
+    function selectFavCard(cardName) { document.getElementById('mCardName').value = cardName; document.getElementById('aiCardName').value = cardName; }
     function togglePayUI(prefix) {
       const isCard = document.querySelector(`input[name="${prefix}PayType"]:checked`).value === 'card';
       ['m', 'ai'].forEach(p => {
-        const radio = document.querySelector(`input[name="${p}PayType"][value="${isCard?'card':'cash'}"]`);
-        if(radio) radio.checked = true;
-        const area = document.getElementById(`${p}CardArea`);
-        if(area) area.style.display = isCard ? 'block' : 'none';
+        document.querySelector(`input[name="${p}PayType"][value="${isCard?'card':'cash'}"]`).checked = true;
+        document.getElementById(`${p}CardArea`).style.display = isCard ? 'block' : 'none';
       });
       if(isCard) renderFavCards();
     }
-    function addFavCard(id) { const val = document.getElementById(id).value.trim(); if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); } }
-    function deleteFavCard(i) { favoriteCards.splice(i, 1); saveFavCards(); renderFavCards(); }
+    
+    // 🔴 功能 2: 圖片處理
+    function handleImgClick(e, n) { const input = document.getElementById('pic' + n); if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } } }
+    function handleAlbumClick(e) { const input = document.getElementById('album'); if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } } }
+    function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
+    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
 
-    async function apiPost(payload) {
-      const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error(`連線失敗: ${res.status}`);
-      return await res.json();
-    }
-
-    function normalizeDateStr(d) {
-      let parsed = d ? new Date(d.replace(" ", "T")) : new Date();
-      if (isNaN(parsed.getTime())) parsed = new Date();
-      const tzOffset = parsed.getTimezoneOffset() * 60000;
-      return new Date(parsed - tzOffset).toISOString().slice(0, -1);
-    }
+    // 🔴 功能 3: API 與數據
+    async function apiPost(p) { const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(p) }); if (!r.ok) throw new Error("連線失敗"); return await r.json(); }
+    function normalizeDateStr(d) { let p = d ? new Date(d.replace(" ", "T")) : new Date(); if (isNaN(p.getTime())) p = new Date(); const o = p.getTimezoneOffset() * 60000; return new Date(p - o).toISOString().slice(0, -1); }
 
     async function submitAI() {
       const btn = document.getElementById('aiBtn'), status = document.getElementById('aiStatus');
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
       if (allFiles.length === 0) return alert("請拍照片！");
       btn.disabled = true; btn.innerText = "⏳ 傳輸中...";
-      status.innerHTML = "🧠 AI 正在分析...";
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
+        status.innerText = "🧠 AI 正在解析圖片內容...";
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
         pendingAiRecords = data.items;
         renderAIPreview();
-        status.innerHTML = "💡 解析完成，請檢查並送出。";
-      } catch (err) { 
-        status.innerHTML = `<div class="status-error">❌ ${err.message}<button class="retry-btn" onclick="resetForm()">清除重試</button></div>`;
-      }
+        status.innerHTML = "💡 解析完成！";
+      } catch (err) { status.innerHTML = `<button onclick="submitAI()" style="background:#ff4d4f; color:white; border:none; padding:8px 15px; border-radius:8px;">❌ ${err.message} (點我重試)</button>`; }
       finally { btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; }
     }
 
@@ -263,14 +223,10 @@
       const container = document.getElementById('aiItemList'); container.innerHTML = "";
       document.getElementById('aiPreviewArea').style.display = 'block';
       document.getElementById('aiCurrencyLabel').innerText = document.getElementById('countryMode').value;
-      const colors = ['#1a73e8', '#f29900', '#9c27b0', '#009688'];
-      const storeMap = {}; let colorIdx = 0;
       pendingAiRecords.forEach((item, i) => {
-        const s = item.storeName || "未辨識";
-        if(!storeMap[s]) storeMap[s] = colors[colorIdx++ % colors.length];
         const div = document.createElement('div'); div.className = 'preview-item';
-        div.style.borderLeftColor = storeMap[s];
-        div.innerHTML = `<div style="font-size:11px; color:${storeMap[s]}; margin-bottom:4px; font-weight:bold;">🏪 ${s}</div><input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${i}].chineseName=this.value"><div style="display:flex; gap:5px; margin-top:5px;"><input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${i}, this.value)"><select onchange="pendingAiRecords[${i}].mainCategory=this.value"><option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option><option value="住" ${item.mainCategory==='住'?'selected':''}>住</option><option value="行" ${item.mainCategory==='行'?'selected':''}>行</option><option value="育" ${item.mainCategory==='育'?'selected':''}>育</option><option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option><option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option></select></div>`;
+        div.style.borderLeft = `4px solid ${item.displayColor || '#1a73e8'}`;
+        div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${i}].chineseName=this.value"><div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${i}, this.value)"><select onchange="pendingAiRecords[${i}].mainCategory=this.value"><option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option><option value="住" ${item.mainCategory==='住'?'selected':''}>住</option><option value="行" ${item.mainCategory==='行'?'selected':''}>行</option><option value="育" ${item.mainCategory==='育'?'selected':''}>育</option><option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option><option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option></select></div>`;
         container.appendChild(div);
       });
       calculateAiTotal();
@@ -280,9 +236,8 @@
 
     async function saveAIResults() {
       if(pendingAiRecords.length === 0) return alert("無資料");
-      const btn = document.getElementById('saveAiBtn');
-      const isSum = document.getElementById('saveSummaryOnly').checked, currency = document.getElementById('countryMode').value;
-      const rate = Number(document.getElementById('currentRate').value) || 1, trip = document.getElementById('tripName').value;
+      const btn = document.getElementById('saveAiBtn'), isSum = document.getElementById('saveSummaryOnly').checked;
+      const currency = document.getElementById('countryMode').value, rate = Number(document.getElementById('currentRate').value) || 1, trip = document.getElementById('tripName').value;
       const payType = document.querySelector('input[name="aiPayType"]:checked').value, card = document.getElementById('aiCardName').value.trim();
       const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
       btn.disabled = true;
@@ -298,7 +253,7 @@
         const records = toSave.map(r => ({ datetime: normalizeDateStr(r.date), item: r.item, store: r.store, amount: r.amount, currency, category: r.category, rate, trip, source: "AI", payment: payMethod }));
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
-        alert("儲存成功！"); resetForm();
+        alert("儲存成功！"); document.getElementById('aiPreviewArea').style.display = 'none'; resetForm(); refreshAll();
       } catch (err) { alert(err.message); }
       finally { btn.disabled = false; }
     }
@@ -313,71 +268,49 @@
       try {
         const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
         const data = await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
-        if (!data.success) throw new Error(data.message);
-        document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; alert("儲存成功！");
-      } catch (e) { alert("儲存失敗: " + e.message); }
+        if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; alert("成功！"); refreshAll(); }
+      } catch (e) { alert("失敗"); }
       finally { btn.disabled = false; }
     }
 
     async function refreshAll() {
+      const trip = document.getElementById('tripName').value;
       try {
-        const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip: document.getElementById('tripName').value, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
+        const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
         if (data.success) { 
           document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
           renderChart(data.categories); 
-          document.getElementById('paymentStatsList').innerHTML = '<div class="section-title">💳 支付統計 (TWD)</div>' + Object.keys(data.payments).map(k => `<div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:5px;"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('');
+          document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('') || "暫無統計";
         }
-        const recent = await apiPost({ action: "get_recent", trip: document.getElementById('tripName').value });
+        const recent = await apiPost({ action: "get_recent", trip });
         if (recent.success) {
-          document.getElementById('recentList').innerHTML = recent.records.map(r => `<div class="detail-item" onclick="alert('店家：${r.store}\\n內容：${r.item}\\n分類：${r.category}\\n支付：${r.payment.startsWith('card:')?r.payment.split(':')[1]:'現金'}')"><div class="detail-info"><b>${r.item}</b><br><small>${new Date(r.datetime).toLocaleDateString()} ${r.payment.startsWith('card:')?'💳':'💵'}</small></div><div class="detail-amt">${r.amount} ${r.currency}</div><button onclick="event.stopPropagation(); confirmDelete('${r.uuid}')" class="del-btn">🗑️</button></div>`).join('') || "無紀錄";
+          document.getElementById('recentList').innerHTML = recent.records.map(r => `
+            <div class="detail-item" onclick="alert('🏪 店家：${r.store}\\n🍱 品項：${r.item}\\n📂 分類：${r.category}\\n💳 支付：${r.payment}\\n🕒 時間：${new Date(r.datetime).toLocaleString()}')">
+              <div class="detail-info"><b>${r.item}</b><br><small>${new Date(r.datetime).toLocaleDateString()} ${r.payment.startsWith('card:')?'💳':'💵'}</small></div>
+              <div class="detail-amt">${r.amount} ${r.currency}</div>
+              <button onclick="event.stopPropagation(); confirmDelete('${r.uuid}')" class="del-btn">🗑️</button>
+            </div>`).join('') || "無紀錄";
         }
       } catch (e) {}
     }
 
     async function confirmDelete(uuid) { if (confirm("確定刪除？")) { const res = await apiPost({ action: "delete_record", uuid, token: APP_TOKEN }); if (res.success) refreshAll(); } }
-    
-    function renderChart(catData) {
-      const ctx = document.getElementById('expenseChart').getContext('2d'); if (chartInstance) chartInstance.destroy();
-      chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } } } });
-    }
-
-    async function compressImg(f) {
-      return new Promise(res => {
-        const r = new FileReader(); r.readAsDataURL(f);
-        r.onload = e => {
-          const i = new Image(); i.src = e.target.result;
-          i.onload = () => {
-            const c = document.createElement('canvas'); let w = i.width, h = i.height, m = 800;
-            if (w > h) { if (w > m) { h *= m/w; w = m; } } else { if (h > m) { w *= m/h; h = m; } }
-            c.width = w; c.height = h; c.getContext('2d').drawImage(i, 0, 0, w, h); res(c.toDataURL('image/jpeg', 0.6).split(',')[1]);
-          };
-        };
-      });
-    }
-
-    function resetForm() { 
-      document.querySelectorAll('.upload-btn').forEach(l => { l.style.backgroundImage='none'; l.innerHTML='拍照片'; });
-      document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; 
-      ['pic1', 'pic2', 'pic3', 'album'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-      document.getElementById('aiPreviewArea').style.display = 'none';
-      document.getElementById('aiStatus').innerHTML = "";
-    }
-
-    function switchTab(id) { 
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); 
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
-      document.getElementById(id).classList.add('active'); 
-      document.getElementById('tab-'+id).classList.add('active');
-      if(id === 'report') refreshAll(); 
-    }
-
+    function renderChart(catData) { const ctx = document.getElementById('expenseChart').getContext('2d'); if (chartInstance) chartInstance.destroy(); chartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(catData), datasets: [{ data: Object.values(catData), backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#8bc34a'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } } }); }
+    async function compressImg(f) { return new Promise(res => { const r = new FileReader(); r.readAsDataURL(f); r.onload = e => { const i = new Image(); i.src = e.target.result; i.onload = () => { const c = document.createElement('canvas'); let w = i.width, h = i.height, m = 800; if (w > h) { if (w > m) { h *= m/w; w = m; } } else { if (h > m) { w *= m/h; h = m; } } c.width = w; c.height = h; c.getContext('2d').drawImage(i, 0, 0, w, h); res(c.toDataURL('image/jpeg', 0.6).split(',')[1]); }; }; }); }
+    function resetForm() { document.querySelectorAll('.upload-btn').forEach(l => { l.style.backgroundImage='none'; l.innerHTML='拍照片'; }); document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; ['pic1', 'pic2', 'pic3', 'album'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; }); }
+    function switchTab(id) { document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); document.getElementById(id).classList.add('active'); event.target.classList.add('active'); if(id === 'report') refreshAll(); }
     function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
-    function handleCountryChange() { const sel = document.getElementById('countryMode'); document.getElementById('currentRate').value = sel.options[sel.selectedIndex].dataset.rate; }
-    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); renderFavCards(); }
+    function handleCountryChange() { const sel = document.getElementById('countryMode'); document.getElementById('currentRate').value = sel.options[sel.selectedIndex].dataset.rate; fetchLiveRate(); }
+    async function fetchLiveRate() { const curr = document.getElementById('countryMode').value; if (curr === "TWD") { document.getElementById('currentRate').value = 1; return; } try { const res = await fetch(`https://open.er-api.com/v6/latest/${curr}`); const data = await res.json(); if (data.rates?.TWD) document.getElementById('currentRate').value = data.rates.TWD.toFixed(4); } catch (e) {} }
+    function saveFavCards() { localStorage.setItem('myFavCards', JSON.stringify(favoriteCards)); }
+    function renderFavCards() { const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join(''); document.getElementById('mFavCardsContainer').innerHTML = html; document.getElementById('aiFavCardsContainer').innerHTML = html; }
+    function addFavCard(id) { const val = document.getElementById(id).value.trim(); if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); } }
+    function deleteFavCard(i) { favoriteCards.splice(i, 1); saveFavCards(); renderFavCards(); }
+    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
     
-    // 雙向同步：手動打字也能互相影響
-    document.getElementById('mCardName').addEventListener('input', function(e) { document.getElementById('aiCardName').value = e.target.value; });
-    document.getElementById('aiCardName').addEventListener('input', function(e) { document.getElementById('mCardName').value = e.target.value; });
+    // 雙向同步卡名
+    document.getElementById('mCardName').addEventListener('input', e => { document.getElementById('aiCardName').value = e.target.value; });
+    document.getElementById('aiCardName').addEventListener('input', e => { document.getElementById('mCardName').value = e.target.value; });
     
     window.onload = setDefaultTime;
   </script>
