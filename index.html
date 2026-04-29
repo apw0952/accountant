@@ -13,12 +13,15 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#34a853">
   <link rel="icon" type="image/png" href="https://drive.google.com/uc?id=1kaAVZauycWMIqMv47SecWzb1W5gwpbqD">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root { --primary: #34a853; --bg: #f4f7f6; --text: #333; --accent: #1a73e8; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 20px; }
     .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
-    .title { font-size: 22px; font-weight: bold; color: var(--primary); text-align: center; margin-bottom: 15px; }
+    .title { font-size: 22px; font-weight: bold; color: var(--primary); text-align: center; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .title img { height: 32px; width: 32px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    
     .tabs { display: flex; gap: 10px; }
     .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; color: #888; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: 0.3s; }
     .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
@@ -83,6 +86,10 @@
     .insight-btn { background: #f29900; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
     .insight-btn:disabled { background: #ccc; cursor: not-allowed; }
     #aiInsightContent { font-size: 14px; color: #444; margin-top: 12px; line-height: 1.6; display: none; text-align: left; background: white; padding: 10px; border-radius: 8px; }
+
+    /* 🔴 新增：安裝指南樣式 */
+    .install-guide { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 12px; padding: 15px; font-size: 13px; color: #1565c0; line-height: 1.5; }
+    .install-guide b { color: #0d47a1; display: block; margin-bottom: 5px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -93,7 +100,10 @@
   </datalist>
 
   <div class="header">
-    <div class="title">📒 AI 旅伴記帳助手</div>
+    <div class="title">
+      <img src="https://drive.google.com/uc?id=1kaAVZauycWMIqMv47SecWzb1W5gwpbqD" alt="Logo">
+      AI 旅伴記帳助手
+    </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('record', this)">📝 記帳</button>
       <button class="tab-btn" onclick="switchTab('report', this)">📊 分析報表</button>
@@ -172,6 +182,12 @@
         <button id="saveAiBtn" class="btn btn-accent" onclick="saveAIResults()">確認無誤，送出 ✅</button>
       </div>
     </div>
+
+    <div class="install-guide">
+      <b>📱 想要像 App 一樣使用嗎？</b>
+      Apple (iOS)：點擊 Safari 下方的「分享」按鈕 ➔ 選擇「加入主畫面」。<br>
+      Android：點擊 Chrome 右上角「三個點」 ➔ 選擇「安裝應用程式」或「新增至主畫面」。
+    </div>
   </div>
 
   <div id="report" class="tab-content">
@@ -237,4 +253,352 @@
     let chartInstance = null, pendingAiRecords = [];
     let pendingDeleteUuids = ""; 
     let isSubmittingAI = false; 
-    let currentStatsData = null;
+    let currentStatsData = null; 
+
+    const CHART_COLORS = {
+      "食": "#FF6384",
+      "衣": "#36A2EB",
+      "住": "#FFCE56",
+      "行": "#4BC0C0",
+      "育": "#9966FF",
+      "樂": "#FF9F40",
+      "其他": "#8bc34a"
+    };
+
+    function handleImgClick(e, n) { const input = document.getElementById('pic' + n); if (input.files?.length > 0) { e.preventDefault(); if (confirm("移除照片？")) { input.value = ""; const lbl = document.getElementById('lbl' + n); lbl.style.backgroundImage = 'none'; lbl.innerHTML = '拍照片'; } } }
+    function handleAlbumClick(e) { const input = document.getElementById('album'); if (input.files?.length > 0) { e.preventDefault(); if (confirm("清除已選相片？")) { input.value = ""; document.getElementById('albumLbl').innerText = '🖼️ 從相簿多選照片'; } } }
+    function previewImg(n) { const f = document.getElementById('pic'+n).files[0]; if(f) { document.getElementById('lbl'+n).style.backgroundImage=`url('${URL.createObjectURL(f)}')`; document.getElementById('lbl'+n).innerHTML='<div class="overlay">✅</div>'; } }
+    function previewAlbum() { document.getElementById('albumLbl').innerText = `✅ 已選 ${document.getElementById('album').files.length} 張`; }
+    
+    function showItemModal(html) {
+      document.getElementById('modalItemText').innerHTML = html;
+      document.getElementById('itemModal').style.display = 'flex';
+    }
+
+    function confirmDelete(uuidsStr) {
+      pendingDeleteUuids = uuidsStr;
+      document.getElementById('deleteModal').style.display = 'flex';
+    }
+
+    async function executeDelete(btnEl) {
+      if (!pendingDeleteUuids) return;
+      const originalText = btnEl.innerText;
+      btnEl.disabled = true;
+      btnEl.innerText = "🗑️ 刪除中...";
+      
+      const uuids = pendingDeleteUuids.split(',');
+      try {
+        const res = await apiPost({ action: "delete_record", uuids: uuids, token: APP_TOKEN }); 
+        if (res.success) refreshAll(); 
+      } catch (e) {
+        alert("刪除失敗，請檢查網路連線");
+      } finally {
+        btnEl.disabled = false;
+        btnEl.innerText = originalText;
+        document.getElementById('deleteModal').style.display = 'none';
+        pendingDeleteUuids = ""; 
+      }
+    }
+
+    function saveFavCards() { localStorage.setItem(STORAGE_KEY, JSON.stringify(favoriteCards)); }
+    function saveOfflineQueue() { localStorage.setItem(OFFLINE_KEY, JSON.stringify(offlineQueue)); }
+    
+    function renderFavCards() {
+      const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join('');
+      document.getElementById('mFavCardsContainer').innerHTML = html;
+      document.getElementById('aiFavCardsContainer').innerHTML = html;
+    }
+    function selectFavCard(cardName) { document.getElementById('mCardName').value = cardName; document.getElementById('aiCardName').value = cardName; }
+    function togglePayUI(prefix) {
+      const isCard = document.querySelector(`input[name="${prefix}PayType"]:checked`).value === 'card';
+      ['m', 'ai'].forEach(p => {
+        document.querySelector(`input[name="${p}PayType"][value="${isCard?'card':'cash'}"]`).checked = true;
+        document.getElementById(`${p}CardArea`).style.display = isCard ? 'block' : 'none';
+      });
+      if(isCard) renderFavCards();
+    }
+    function addFavCard(id) { const val = document.getElementById(id).value.trim(); if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); } }
+    function deleteFavCard(i) { favoriteCards.splice(i, 1); saveFavCards(); renderFavCards(); }
+
+    async function apiPost(payload) { 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      try {
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal }); 
+        if (!res.ok) throw new Error(`連線失敗: ${res.status}`); 
+        return await res.json(); 
+      } catch (err) {
+        throw new Error(err.name === 'AbortError' ? "連線逾時，請檢查網路狀態。" : "連線失敗或伺服器無回應。");
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    function normalizeDateStr(d) { let p = d ? new Date(d.replace(" ", "T")) : new Date(); if (isNaN(p.getTime())) p = new Date(); const o = p.getTimezoneOffset() * 60000; return new Date(p - o).toISOString().slice(0, -1); }
+
+    async function submitAI() {
+      if (isSubmittingAI) return;
+      
+      const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
+      if (allFiles.length === 0) return alert("請拍照片！");
+      
+      isSubmittingAI = true;
+      const btn = document.getElementById('aiBtn'), status = document.getElementById('aiStatus');
+      
+      document.getElementById('aiPreviewArea').style.display = 'none';
+      document.getElementById('aiItemList').innerHTML = "";
+      
+      btn.disabled = true; btn.innerText = "⏳ 正在傳輸照片...";
+      try {
+        const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
+        status.innerText = "🧠 AI 正在分析內容，請稍候...";
+        const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
+        if (!data.success) throw new Error(data.message);
+        pendingAiRecords = data.items;
+        renderAIPreview();
+        status.innerHTML = "💡 解析完成，請檢查並送出。";
+      } catch (err) { 
+        status.innerHTML = `<button onclick="submitAI()" style="background:#ff4d4f; color:white; border:none; padding:8px 15px; border-radius:8px;">❌ ${err.message} (點我重試)</button>`; 
+      } finally { 
+        btn.disabled = false; btn.innerText = "AI 智慧解析 ✨"; 
+        isSubmittingAI = false; 
+      }
+    }
+
+    function renderAIPreview() {
+      const container = document.getElementById('aiItemList'); container.innerHTML = "";
+      document.getElementById('aiPreviewArea').style.display = 'block';
+      document.getElementById('aiCurrencyLabel').innerText = document.getElementById('countryMode').value;
+      pendingAiRecords.forEach((item, i) => {
+        const div = document.createElement('div'); div.className = 'preview-item';
+        div.style.borderLeft = `4px solid ${item.displayColor || '#1a73e8'}`;
+        div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${i}].chineseName=this.value"><div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${i}, this.value)"><select onchange="pendingAiRecords[${i}].mainCategory=this.value"><option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option><option value="住" ${item.mainCategory==='住'?'selected':''}>住</option><option value="行" ${item.mainCategory==='行'?'selected':''}>行</option><option value="育" ${item.mainCategory==='育'?'selected':''}>育</option><option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option><option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option></select></div>`;
+        container.appendChild(div);
+      });
+      calculateAiTotal();
+    }
+    function updateAiItemAmt(i, v) { pendingAiRecords[i].localAmount = Number(v); calculateAiTotal(); }
+    function calculateAiTotal() { document.getElementById('aiTotalInput').value = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0); }
+
+    async function saveAIResults() {
+      if(pendingAiRecords.length === 0) return alert("無資料");
+      const btn = document.getElementById('saveAiBtn'), mTotal = Number(document.getElementById('aiTotalInput').value);
+      
+      if (isNaN(mTotal) || mTotal <= 0) return alert("實付總額必須大於 0");
+
+      const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
+      const currency = document.getElementById('countryMode').value;
+      const rate = Number(document.getElementById('currentRate').value) || 1, trip = document.getElementById('tripName').value;
+      const payType = document.querySelector('input[name="aiPayType"]:checked').value, card = document.getElementById('aiCardName').value.trim();
+      const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
+
+      btn.disabled = true;
+      let toSave = [...pendingAiRecords];
+      
+      try {
+        if (Math.abs(mTotal - calculatedTotal) > 0.01) {
+          const diff = (mTotal - calculatedTotal).toFixed(2);
+          const sign = diff > 0 ? '+' : '';
+          toSave.push({ chineseName: `⚠️ 差額 ${sign}${diff} (自動補正)`, storeName: pendingAiRecords[0]?.storeName || "系統補正", localAmount: Number(diff), mainCategory: "其他", receiptDate: pendingAiRecords[0]?.receiptDate });
+        }
+        const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI辨識", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI", payment: payMethod }));
+        
+        const data = await apiPost({ action: "add_records", records });
+        if (!data.success) throw new Error(data.message);
+        document.getElementById('aiPreviewArea').style.display = 'none'; resetForm(); refreshAll();
+      } catch (err) { 
+        if (err.message.includes("連線逾時") || err.message.includes("連線失敗")) {
+          const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI辨識", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI (Offline)", payment: payMethod }));
+          offlineQueue.push(...records);
+          saveOfflineQueue();
+          document.getElementById('aiPreviewArea').style.display = 'none'; resetForm();
+          alert("⚠️ 網路不穩，已自動暫存至設備，將於恢復連線時上傳！");
+          refreshAll();
+        } else {
+          alert(err.message); 
+        }
+      } finally { btn.disabled = false; }
+    }
+
+    async function submitManual() {
+      const btn = document.getElementById('manualBtn'), item = document.getElementById('mItem').value.trim(), amt = Number(document.getElementById('mAmt').value);
+      const store = document.getElementById('mStore').value.trim() || "手動";
+      
+      if(!item || isNaN(amt) || amt <= 0) return alert("請填寫品項名稱，且金額必須大於 0");
+      
+      const payType = document.querySelector('input[name="mPayType"]:checked').value, card = document.getElementById('mCardName').value.trim();
+      const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
+      const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
+      const records = [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }];
+      
+      btn.disabled = true;
+      try {
+        const data = await apiPost({ action: "add_records", records });
+        if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; refreshAll(); }
+      } catch (e) { 
+        if (e.message.includes("連線逾時") || e.message.includes("連線失敗")) {
+          records[0].source = "Manual (Offline)";
+          offlineQueue.push(...records);
+          saveOfflineQueue();
+          document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = "";
+          alert("⚠️ 網路不穩，已自動暫存至設備，將於恢復連線時上傳！");
+          refreshAll();
+        } else {
+          alert("失敗：" + e.message); 
+        }
+      } finally { btn.disabled = false; }
+    }
+
+    async function syncOfflineQueue() {
+      if (offlineQueue.length === 0) return;
+      try {
+        const res = await apiPost({ action: "add_records", records: offlineQueue });
+        if (res.success) {
+          offlineQueue = []; // 清空佇列
+          saveOfflineQueue();
+          console.log("離線資料同步成功！");
+        }
+      } catch (e) {
+        console.log("離線同步稍後重試...");
+      }
+    }
+
+    async function refreshAll() {
+      await syncOfflineQueue(); 
+      
+      const trip = document.getElementById('tripName').value;
+      try {
+        document.getElementById('aiInsightContent').style.display = 'none';
+        document.getElementById('aiInsightContent').innerHTML = '';
+        const insightBtn = document.getElementById('insightBtn');
+        if (insightBtn) {
+           insightBtn.disabled = false;
+           insightBtn.innerText = '✨ 產生分析';
+        }
+
+        const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
+        if (data.success) { 
+          currentStatsData = data; 
+          document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
+          renderChart(data.categories); 
+          document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('') || "暫無統計";
+        }
+        
+        const recent = await apiPost({ action: "get_recent", trip });
+        if (recent.success) {
+          const groups = {};
+          recent.records.forEach(r => {
+            const gid = r.groupId || r.uuid; 
+            if (!groups[gid]) {
+              groups[gid] = { store: r.store, payment: r.payment, datetime: r.datetime, currency: r.currency, totalAmount: 0, items: [], uuids: [] };
+            }
+            groups[gid].totalAmount += Number(r.amount);
+            groups[gid].items.push(`▪️ ${r.item} ($${r.amount})`);
+            groups[gid].uuids.push(r.uuid); 
+          });
+
+          document.getElementById('recentList').innerHTML = Object.values(groups).map(g => {
+            const uuidsStr = g.uuids.join(','); 
+            const modalHtml = g.items.join('<br>').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const itemCountStr = g.items.length > 1 ? `(共${g.items.length}項)` : '';
+            return `
+            <div class="detail-item" onclick="showItemModal('${modalHtml}')">
+              <div class="detail-info">
+                <b>${g.store}</b><br>
+                <small>${new Date(g.datetime).toLocaleDateString()} ${g.payment.startsWith('card:')?'💳':'💵'} ${itemCountStr}</small>
+              </div>
+              <div class="detail-amt">${Number(g.totalAmount.toFixed(2))} ${g.currency}</div>
+              <button onclick="event.stopPropagation(); confirmDelete('${uuidsStr}')" class="del-btn">🗑️</button>
+            </div>`;
+          }).join('') || "無紀錄";
+        }
+      } catch (e) {}
+    }
+    
+    async function fetchAIInsight() {
+      if (!currentStatsData || currentStatsData.total === 0) return alert("目前沒有花費紀錄可供分析喔！");
+      
+      const btn = document.getElementById('insightBtn');
+      const content = document.getElementById('aiInsightContent');
+      
+      btn.disabled = true;
+      btn.innerText = "⏳ AI 思考中...";
+      content.style.display = 'block';
+      content.innerHTML = "<i>正在分析您的消費習慣，請稍候...</i>";
+
+      try {
+        const res = await apiPost({ action: "analyze_stats", stats: currentStatsData });
+        if (!res.success) throw new Error(res.message);
+        content.innerHTML = res.insight.replace(/\n/g, '<br>');
+        btn.innerText = "✅ 分析完成";
+      } catch (e) {
+        content.innerHTML = `<span style="color:#ff4d4f;">❌ 分析失敗，請檢查網路後重試。</span>`;
+        btn.disabled = false;
+        btn.innerText = "✨ 重新產生";
+      }
+    }
+
+    function renderChart(catData) { 
+      const ctx = document.getElementById('expenseChart').getContext('2d'); 
+      if (chartInstance) chartInstance.destroy(); 
+      
+      const labels = Object.keys(catData);
+      const data = Object.values(catData);
+      const total = data.reduce((a, b) => a + b, 0);
+
+      if (total === 0) {
+        chartInstance = new Chart(ctx, { 
+          type: 'doughnut', 
+          data: { labels: ['尚無資料'], datasets: [{ data: [1], backgroundColor: ['#e0e0e0'] }] }, 
+          options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false }, legend: { position: 'bottom' } } } 
+        });
+        return;
+      }
+
+      const bgColors = labels.map(label => CHART_COLORS[label] || '#cccccc');
+
+      chartInstance = new Chart(ctx, { 
+        type: 'doughnut', 
+        data: { labels: labels, datasets: [{ data: data, backgroundColor: bgColors }] }, 
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 } } } } 
+      }); 
+    }
+
+    async function compressImg(f) { return new Promise(res => { const r = new FileReader(); r.readAsDataURL(f); r.onload = e => { const i = new Image(); i.src = e.target.result; i.onload = () => { const c = document.createElement('canvas'); let w = i.width, h = i.height, m = 800; if (w > h) { if (w > m) { h *= m/w; w = m; } } else { if (h > m) { w *= m/h; h = m; } } c.width = w; c.height = h; c.getContext('2d').drawImage(i, 0, 0, w, h); res(c.toDataURL('image/jpeg', 0.6).split(',')[1]); }; }; }); }
+    function resetForm() { document.querySelectorAll('.upload-btn').forEach(l => { l.style.backgroundImage='none'; l.innerHTML='拍照片'; }); document.getElementById('albumLbl').innerText='🖼️ 從相簿多選照片'; ['pic1', 'pic2', 'pic3', 'album'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; }); }
+    
+    function switchTab(id, el) { 
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); 
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
+      document.getElementById(id).classList.add('active'); 
+      if (el) el.classList.add('active'); 
+      if(id === 'report') refreshAll(); 
+    }
+    
+    function toggleCustomDate() { document.getElementById('customDateContainer').style.display = document.getElementById('dateRange').value === 'custom' ? 'flex' : 'none'; }
+    function handleCountryChange() { const sel = document.getElementById('countryMode'); document.getElementById('currentRate').value = sel.options[sel.selectedIndex].dataset.rate; fetchLiveRate(); }
+    
+    async function fetchLiveRate() { 
+      const curr = document.getElementById('countryMode').value; 
+      if (curr === "TWD") { document.getElementById('currentRate').value = 1; return; } 
+      try { 
+        const res = await fetch(`https://open.er-api.com/v6/latest/${curr}`); 
+        const data = await res.json(); 
+        if (data.rates?.TWD) {
+          document.getElementById('currentRate').value = data.rates.TWD.toFixed(4); 
+        } else {
+          throw new Error("匯率資料無效");
+        }
+      } catch (e) {
+        alert("⚠️ 取得即時匯率失敗，目前已套用系統預設匯率。");
+      } 
+    }
+    
+    document.getElementById('mCardName').addEventListener('input', e => { document.getElementById('aiCardName').value = e.target.value; });
+    document.getElementById('aiCardName').addEventListener('input', e => { document.getElementById('mCardName').value = e.target.value; });
+    
+    function setDefaultTime() { const now = new Date(); document.getElementById('mDate').value = now.toISOString().split('T')[0]; document.getElementById('mTime').value = now.toTimeString().slice(0,5); handleCountryChange(); renderFavCards(); }
+    window.onload = setDefaultTime;
+  </script>
+</body>
+</html>
