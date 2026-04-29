@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AI 旅伴記帳助手</title>
+  <title>旅咖小帳</title>
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -22,13 +22,13 @@
     
     /* 標題與 Logo 樣式優化 (上下編排設計) */
     .title { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 10px 0; margin-bottom: 10px; }
-    .title img { height: 50px; width: 50px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .title img { height: 56px; width: 56px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .title-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
     .brand-name { font-size: 24px; font-weight: 800; color: #5d4037; letter-spacing: 1px; }
-    .brand-sub { font-size: 11px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; opacity: 0.8; }
+    .brand-sub { font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-top: 4px; opacity: 0.9; }
     
     .tabs { display: flex; gap: 10px; }
-    .tab-btn { flex: 1; padding: 12px; text-align: center; font-weight: bold; color: #888; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: 0.3s; }
+    .tab-btn { flex: 1; padding: 12px; text-align: center; font-size: 17px; font-weight: bold; color: #888; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: 0.3s; }
     .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
     .tab-content { display: none; padding: 20px; }
     .tab-content.active { display: block; }
@@ -125,6 +125,11 @@
           <option value="JPY" data-rate="0.21">🇯🇵 日本 (JPY)</option>
           <option value="KRW" data-rate="0.024">🇰🇷 韓國 (KRW)</option>
           <option value="USD" data-rate="32.5">🇺🇸 美金 (USD)</option>
+          <option value="EUR" data-rate="34.5">🇪🇺 歐元 (EUR)</option>
+          <option value="GBP" data-rate="40.5">🇬🇧 英鎊 (GBP)</option>
+          <option value="AUD" data-rate="21.0">🇦🇺 澳幣 (AUD)</option>
+          <option value="THB" data-rate="0.9">🇹🇭 泰銖 (THB)</option>
+          <option value="SGD" data-rate="24.0">🇸🇬 新加坡幣 (SGD)</option>
         </select>
         <input type="number" id="currentRate" step="0.0001" placeholder="匯率" style="flex: 1; margin-bottom:0;">
         <button onclick="fetchLiveRate()" style="background:none; border:none; color:var(--accent); font-size:18px; cursor:pointer;">🔄</button>
