@@ -67,6 +67,13 @@
     .modal-content { background: white; padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 80vh; display: flex; flex-direction: column; }
     .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; flex-shrink: 0; }
     .modal-content p { font-size: 15px; color: #333; line-height: 1.8; word-wrap: break-word; margin-bottom: 20px; text-align: left; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
+
+    /* 🔴 新增：AI 消費洞察方框樣式 */
+    .ai-insight-box { background: #fff8e1; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #ffe082; }
+    .insight-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #d4a100; font-size: 15px; }
+    .insight-btn { background: #f29900; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .insight-btn:disabled { background: #ccc; cursor: not-allowed; }
+    #aiInsightContent { font-size: 14px; color: #444; margin-top: 12px; line-height: 1.6; display: none; text-align: left; background: white; padding: 10px; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -172,6 +179,15 @@
         <div class="total-amt" id="totalSpent">NT$ 0</div>
       </div>
       <div id="chartContainer"><canvas id="expenseChart"></canvas></div>
+      
+      <div class="ai-insight-box" id="aiInsightBox">
+        <div class="insight-header">
+          <span>💡 AI 財務診斷</span>
+          <button id="insightBtn" class="insight-btn" onclick="fetchAIInsight()">✨ 產生分析</button>
+        </div>
+        <div id="aiInsightContent"></div>
+      </div>
+
       <div style="margin-top:10px; background:#f9f9f9; border-radius:10px; padding:12px;">
         <div class="section-title">💳 支付統計 (TWD)</div>
         <div id="paymentStatsList"></div>
@@ -203,13 +219,13 @@
     const API_URL = "https://script.google.com/macros/s/AKfycby5FLb554LEwSvWIt9_roqXadtB9tBVvwufig3Vr88gdLwYGubZiufDoDPhp7a9cg0/exec"; 
     const APP_TOKEN = "ai-travel-2026"; 
     
-    // 🔴 防護 4：LocalStorage 加入版本號
     const STORAGE_KEY = "myFavCards_v1";
     let favoriteCards = JSON.parse(localStorage.getItem(STORAGE_KEY)) || ["國泰 CUBE卡"];
     
     let chartInstance = null, pendingAiRecords = [];
     let pendingDeleteUuids = ""; 
-    let isSubmittingAI = false; // 🔴 防護 2：AI 執行鎖
+    let isSubmittingAI = false; 
+    let currentStatsData = null; // 🔴 新增：用來存放當前的圖表統計資料給 AI 分析
 
     const CHART_COLORS = {
       "食": "#FF6384",
@@ -274,7 +290,6 @@
     function addFavCard(id) { const val = document.getElementById(id).value.trim(); if(val && !favoriteCards.includes(val)) { favoriteCards.push(val); saveFavCards(); renderFavCards(); } }
     function deleteFavCard(i) { favoriteCards.splice(i, 1); saveFavCards(); renderFavCards(); }
 
-    // 🔴 防護 1：API 加入 AbortController Timeout (15秒)
     async function apiPost(payload) { 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -292,7 +307,6 @@
     function normalizeDateStr(d) { let p = d ? new Date(d.replace(" ", "T")) : new Date(); if (isNaN(p.getTime())) p = new Date(); const o = p.getTimezoneOffset() * 60000; return new Date(p - o).toISOString().slice(0, -1); }
 
     async function submitAI() {
-      // 🔴 防護 2：執行鎖定，防幽靈連點
       if (isSubmittingAI) return;
       
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
@@ -340,7 +354,6 @@
       if(pendingAiRecords.length === 0) return alert("無資料");
       const btn = document.getElementById('saveAiBtn'), mTotal = Number(document.getElementById('aiTotalInput').value);
       
-      // 🔴 防護 3：金額防呆 (確保實付總額不為負數或 0)
       if (isNaN(mTotal) || mTotal <= 0) return alert("實付總額必須大於 0");
 
       const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
@@ -369,7 +382,6 @@
       const btn = document.getElementById('manualBtn'), item = document.getElementById('mItem').value.trim(), amt = Number(document.getElementById('mAmt').value);
       const store = document.getElementById('mStore').value.trim() || "手動";
       
-      // 🔴 防護 3：金額防呆 (擋掉空值與負數)
       if(!item || isNaN(amt) || amt <= 0) return alert("請填寫品項名稱，且金額必須大於 0");
       
       const payType = document.querySelector('input[name="mPayType"]:checked').value, card = document.getElementById('mCardName').value.trim();
@@ -386,8 +398,16 @@
     async function refreshAll() {
       const trip = document.getElementById('tripName').value;
       try {
+        // 每次刷新時，隱藏 AI 洞察框並重置按鈕
+        document.getElementById('aiInsightContent').style.display = 'none';
+        document.getElementById('aiInsightContent').innerHTML = '';
+        const insightBtn = document.getElementById('insightBtn');
+        insightBtn.disabled = false;
+        insightBtn.innerText = '✨ 產生分析';
+
         const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
         if (data.success) { 
+          currentStatsData = data; // 🔴 儲存下來給 AI 洞察使用
           document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
           renderChart(data.categories); 
           document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('') || "暫無統計";
@@ -424,6 +444,30 @@
       } catch (e) {}
     }
     
+    // 🔴 呼叫 AI 產生洞察分析
+    async function fetchAIInsight() {
+      if (!currentStatsData || currentStatsData.total === 0) return alert("目前沒有花費紀錄可供分析喔！");
+      
+      const btn = document.getElementById('insightBtn');
+      const content = document.getElementById('aiInsightContent');
+      
+      btn.disabled = true;
+      btn.innerText = "⏳ AI 思考中...";
+      content.style.display = 'block';
+      content.innerHTML = "<i>正在分析您的消費習慣，請稍候...</i>";
+
+      try {
+        const res = await apiPost({ action: "analyze_stats", stats: currentStatsData });
+        if (!res.success) throw new Error(res.message);
+        content.innerHTML = res.insight.replace(/\n/g, '<br>');
+        btn.innerText = "✅ 分析完成";
+      } catch (e) {
+        content.innerHTML = `<span style="color:#ff4d4f;">❌ 分析失敗，請檢查網路後重試。</span>`;
+        btn.disabled = false;
+        btn.innerText = "✨ 重新產生";
+      }
+    }
+
     function renderChart(catData) { 
       const ctx = document.getElementById('expenseChart').getContext('2d'); 
       if (chartInstance) chartInstance.destroy(); 
