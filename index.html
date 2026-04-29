@@ -68,7 +68,7 @@
     .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; flex-shrink: 0; }
     .modal-content p { font-size: 15px; color: #333; line-height: 1.8; word-wrap: break-word; margin-bottom: 20px; text-align: left; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
 
-    /* 🔴 新增：AI 消費洞察方框樣式 */
+    /* AI 消費洞察方框樣式 */
     .ai-insight-box { background: #fff8e1; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #ffe082; }
     .insight-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #d4a100; font-size: 15px; }
     .insight-btn { background: #f29900; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
@@ -220,12 +220,15 @@
     const APP_TOKEN = "ai-travel-2026"; 
     
     const STORAGE_KEY = "myFavCards_v1";
+    const OFFLINE_KEY = "offlineQueue_v1"; // 🔴 新增：離線佇列 KEY
+    
     let favoriteCards = JSON.parse(localStorage.getItem(STORAGE_KEY)) || ["國泰 CUBE卡"];
+    let offlineQueue = JSON.parse(localStorage.getItem(OFFLINE_KEY)) || []; // 🔴 新增：離線佇列
     
     let chartInstance = null, pendingAiRecords = [];
     let pendingDeleteUuids = ""; 
     let isSubmittingAI = false; 
-    let currentStatsData = null; // 🔴 新增：用來存放當前的圖表統計資料給 AI 分析
+    let currentStatsData = null; 
 
     const CHART_COLORS = {
       "食": "#FF6384",
@@ -272,7 +275,10 @@
       }
     }
 
+    // 🔴 儲存工具
     function saveFavCards() { localStorage.setItem(STORAGE_KEY, JSON.stringify(favoriteCards)); }
+    function saveOfflineQueue() { localStorage.setItem(OFFLINE_KEY, JSON.stringify(offlineQueue)); } // 🔴 新增
+    
     function renderFavCards() {
       const html = favoriteCards.map((card, i) => `<div class="fav-card-chip" onclick="selectFavCard('${card}')">${card} <span class="fav-card-del" onclick="event.stopPropagation(); deleteFavCard(${i})">✖</span></div>`).join('');
       document.getElementById('mFavCardsContainer').innerHTML = html;
@@ -363,19 +369,32 @@
       const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
 
       btn.disabled = true;
+      let toSave = [...pendingAiRecords];
+      
       try {
-        let toSave = [...pendingAiRecords];
         if (Math.abs(mTotal - calculatedTotal) > 0.01) {
           const diff = (mTotal - calculatedTotal).toFixed(2);
           const sign = diff > 0 ? '+' : '';
           toSave.push({ chineseName: `⚠️ 差額 ${sign}${diff} (自動補正)`, storeName: pendingAiRecords[0]?.storeName || "系統補正", localAmount: Number(diff), mainCategory: "其他", receiptDate: pendingAiRecords[0]?.receiptDate });
         }
         const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI辨識", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI", payment: payMethod }));
+        
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error(data.message);
         document.getElementById('aiPreviewArea').style.display = 'none'; resetForm(); refreshAll();
-      } catch (err) { alert(err.message); }
-      finally { btn.disabled = false; }
+      } catch (err) { 
+        // 🔴 變更：離線佇列捕捉
+        if (err.message.includes("連線逾時") || err.message.includes("連線失敗")) {
+          const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI辨識", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI (Offline)", payment: payMethod }));
+          offlineQueue.push(...records);
+          saveOfflineQueue();
+          document.getElementById('aiPreviewArea').style.display = 'none'; resetForm();
+          alert("⚠️ 網路不穩，已自動暫存至設備，將於恢復連線時上傳！");
+          refreshAll();
+        } else {
+          alert(err.message); 
+        }
+      } finally { btn.disabled = false; }
     }
 
     async function submitManual() {
@@ -386,28 +405,59 @@
       
       const payType = document.querySelector('input[name="mPayType"]:checked').value, card = document.getElementById('mCardName').value.trim();
       const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
+      const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
+      const records = [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }];
+      
       btn.disabled = true;
       try {
-        const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
-        const data = await apiPost({ action: "add_records", records: [{ datetime: normalizeDateStr(date), item, store, amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }]});
+        const data = await apiPost({ action: "add_records", records });
         if(data.success) { document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = ""; refreshAll(); }
-      } catch (e) { alert("失敗"); }
-      finally { btn.disabled = false; }
+      } catch (e) { 
+        // 🔴 變更：離線佇列捕捉
+        if (e.message.includes("連線逾時") || e.message.includes("連線失敗")) {
+          records[0].source = "Manual (Offline)";
+          offlineQueue.push(...records);
+          saveOfflineQueue();
+          document.getElementById('mItem').value = ""; document.getElementById('mAmt').value = ""; document.getElementById('mStore').value = "";
+          alert("⚠️ 網路不穩，已自動暫存至設備，將於恢復連線時上傳！");
+          refreshAll();
+        } else {
+          alert("失敗：" + e.message); 
+        }
+      } finally { btn.disabled = false; }
+    }
+
+    // 🔴 新增：在背景自動補送離線資料的函數
+    async function syncOfflineQueue() {
+      if (offlineQueue.length === 0) return;
+      try {
+        const res = await apiPost({ action: "add_records", records: offlineQueue });
+        if (res.success) {
+          offlineQueue = []; // 清空佇列
+          saveOfflineQueue();
+          console.log("離線資料同步成功！");
+        }
+      } catch (e) {
+        console.log("離線同步稍後重試...");
+      }
     }
 
     async function refreshAll() {
+      await syncOfflineQueue(); // 🔴 變更：每次刷新時嘗試把暫存的資料傳出去
+      
       const trip = document.getElementById('tripName').value;
       try {
-        // 每次刷新時，隱藏 AI 洞察框並重置按鈕
         document.getElementById('aiInsightContent').style.display = 'none';
         document.getElementById('aiInsightContent').innerHTML = '';
         const insightBtn = document.getElementById('insightBtn');
-        insightBtn.disabled = false;
-        insightBtn.innerText = '✨ 產生分析';
+        if (insightBtn) {
+           insightBtn.disabled = false;
+           insightBtn.innerText = '✨ 產生分析';
+        }
 
         const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
         if (data.success) { 
-          currentStatsData = data; // 🔴 儲存下來給 AI 洞察使用
+          currentStatsData = data; 
           document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
           renderChart(data.categories); 
           document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('') || "暫無統計";
@@ -444,7 +494,6 @@
       } catch (e) {}
     }
     
-    // 🔴 呼叫 AI 產生洞察分析
     async function fetchAIInsight() {
       if (!currentStatsData || currentStatsData.total === 0) return alert("目前沒有花費紀錄可供分析喔！");
       
@@ -468,12 +517,25 @@
       }
     }
 
+    // 🔴 變更：Chart.js 防護空圖表顯示
     function renderChart(catData) { 
       const ctx = document.getElementById('expenseChart').getContext('2d'); 
       if (chartInstance) chartInstance.destroy(); 
       
       const labels = Object.keys(catData);
       const data = Object.values(catData);
+      const total = data.reduce((a, b) => a + b, 0);
+
+      // 無資料時渲染灰色預設環
+      if (total === 0) {
+        chartInstance = new Chart(ctx, { 
+          type: 'doughnut', 
+          data: { labels: ['尚無資料'], datasets: [{ data: [1], backgroundColor: ['#e0e0e0'] }] }, 
+          options: { responsive: true, maintainAspectRatio: false, plugins: { tooltip: { enabled: false }, legend: { position: 'bottom' } } } 
+        });
+        return;
+      }
+
       const bgColors = labels.map(label => CHART_COLORS[label] || '#cccccc');
 
       chartInstance = new Chart(ctx, { 
