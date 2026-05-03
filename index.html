@@ -26,7 +26,6 @@
     .brand-name { font-size: 24px; font-weight: 800; color: #5d4037; letter-spacing: 1px; }
     .brand-sub { font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-top: 4px; opacity: 0.9; }
     
-    /* 🔴 新增：使用者名稱輸入框樣式 */
     .user-box { background: #e3f2fd; padding: 8px 15px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; border: 1px solid #bbdefb; }
     .user-box input { border: none; background: white; padding: 8px; border-radius: 5px; flex: 1; font-weight: bold; color: var(--accent); margin-bottom: 0; }
 
@@ -46,8 +45,9 @@
     
     .full-row { flex: 1 1 100% !important; }
 
-    .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
-    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; transition: transform 0.1s; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; }
     .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); }
     .btn-accent { background: var(--accent); }
     
@@ -71,6 +71,9 @@
     .ai-summary-row { background: #fff4e5; padding: 15px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 2px solid #f29900; }
     .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 140px; text-align: right; }
     
+    #progressBarWrap { width: 100%; height: 6px; background: #eee; border-radius: 10px; overflow: hidden; margin-top: 10px; display: none; }
+    #progressBar { width: 0%; height: 100%; background: var(--primary); transition: width 0.4s ease-out; }
+
     .detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; }
     .detail-item:active { background: #f0f0f0; }
     .detail-info { flex: 1; overflow: hidden; }
@@ -88,12 +91,11 @@
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
     .modal-content { background: white; padding: 25px 20px; border-radius: 15px; width: 100%; max-width: 320px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 80vh; display: flex; flex-direction: column; }
     .modal-content h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 18px; flex-shrink: 0; }
-    .modal-content p { font-size: 15px; color: #333; line-height: 1.8; word-wrap: break-word; margin-bottom: 20px; text-align: left; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
+    .modal-content p { font-size: 15px; color: #333; line-height: 1.8; word-wrap: break-word; margin-bottom: 20px; text-align: center; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
 
     .ai-insight-box { background: #fff8e1; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #ffe082; }
     .insight-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #d4a100; font-size: 15px; }
     .insight-btn { background: #f29900; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
-    .insight-btn:disabled { background: #ccc; cursor: not-allowed; }
     #aiInsightContent { font-size: 14px; color: #444; margin-top: 12px; line-height: 1.6; display: none; text-align: left; background: white; padding: 10px; border-radius: 8px; }
 
     .install-guide { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 12px; padding: 15px; font-size: 13px; color: #1565c0; line-height: 1.5; margin-top: 10px; }
@@ -118,7 +120,7 @@
     
     <div class="user-box">
       <span style="font-size: 13px; font-weight: bold; color: #1565c0;">👤 使用者帳號:</span>
-      <input type="text" id="mUser" placeholder="輸入你的名字(如: Amy)" onchange="saveUser()">
+      <input type="text" id="mUser" placeholder="輸入你的名字(如: Amy)" onchange="saveUser(); refreshAll(true);">
     </div>
 
     <div class="tabs">
@@ -164,8 +166,8 @@
       
       <div class="section-title" style="margin-top:10px;">💳 支付方式</div>
       <div class="pay-method-group">
-        <label class="pay-radio"><input type="radio" name="mPayType" value="cash" checked onchange="togglePayUI('m')"> <span>現金</span></label>
-        <label class="pay-radio"><input type="radio" name="mPayType" value="card" onchange="togglePayUI('m')"> <span>刷卡</span></label>
+        <label class="pay-radio"><input type="radio" name="mPayType" value="cash" checked onchange="togglePayUI('m')"> <span>💵 現金</span></label>
+        <label class="pay-radio"><input type="radio" name="mPayType" value="card" onchange="togglePayUI('m')"> <span>💳 刷卡</span></label>
       </div>
       <div id="mCardArea" style="display:none; background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:10px;">
         <div style="display:flex; gap:5px;"><input type="text" id="mCardName" list="bankList" placeholder="卡名..." style="margin-bottom:0;"><button onclick="addFavCard('mCardName')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:0 12px; white-space:nowrap;">+ 常用</button></div>
@@ -182,8 +184,11 @@
         <label for="pic3" class="upload-btn" id="lbl3" onclick="handleImgClick(event, 3)">拍照片</label><input type="file" id="pic3" accept="image/*" capture="environment" onchange="previewImg(3)">
       </div>
       <label for="album" class="album-btn" id="albumLbl" onclick="handleAlbumClick(event)">🖼️ 從相簿多選照片</label><input type="file" id="album" accept="image/*" multiple onchange="previewAlbum()">
-      <button id="aiBtn" class="btn" onclick="submitAI()">AI 智慧解析 ✨</button>
-      <div id="aiStatus" style="margin-top:10px; font-size:13px; color:#666; text-align:center;"></div>
+      
+      <button id="aiBtn" class="btn" onclick="submitAI()">幫我看收據 ✨</button>
+      
+      <div id="progressBarWrap"><div id="progressBar"></div></div>
+      <div id="aiStatus" style="margin-top:10px; font-size:13px; color:#666; text-align:center; font-weight:bold;"></div>
       
       <div id="aiPreviewArea">
         <div class="section-title">🔍 確認結果</div>
@@ -194,8 +199,8 @@
         </div>
         <div class="section-title">💳 支付方式</div>
         <div class="pay-method-group">
-          <label class="pay-radio"><input type="radio" name="aiPayType" value="cash" checked onchange="togglePayUI('ai')"> <span>現金</span></label>
-          <label class="pay-radio"><input type="radio" name="aiPayType" value="card" onchange="togglePayUI('ai')"> <span>刷卡</span></label>
+          <label class="pay-radio"><input type="radio" name="aiPayType" value="cash" checked onchange="togglePayUI('ai')"> <span>💵 現金</span></label>
+          <label class="pay-radio"><input type="radio" name="aiPayType" value="card" onchange="togglePayUI('ai')"> <span>💳 刷卡</span></label>
         </div>
         <div id="aiCardArea" style="display:none; background:#f8f9fa; padding:10px; border-radius:10px; margin-bottom:15px;">
           <div style="display:flex; gap:5px;"><input type="text" id="aiCardName" list="bankList" placeholder="卡名..." style="margin-bottom:0;"><button onclick="addFavCard('aiCardName')" style="background:var(--accent); color:white; border:none; border-radius:8px; padding:0 12px; white-space:nowrap;">+ 常用</button></div>
@@ -233,7 +238,7 @@
       <div class="ai-insight-box" id="aiInsightBox">
         <div class="insight-header">
           <span>💡 AI 財務診斷</span>
-          <button id="insightBtn" class="insight-btn" onclick="fetchAIInsight()">✨ 產生分析</button>
+          <button id="insightBtn" class="insight-btn" onclick="fetchAIInsight()">✨ 幫我看看花去哪了</button>
         </div>
         <div id="aiInsightContent"></div>
       </div>
@@ -257,7 +262,7 @@
   <div id="deleteModal" class="modal-overlay" onclick="this.style.display='none'">
     <div class="modal-content" onclick="event.stopPropagation();">
       <h3 style="color: #ff4d4f;">⚠️ 確定刪除？</h3>
-      <p style="text-align: center; margin-bottom: 20px;">刪除後將無法復原這筆紀錄。</p>
+      <p style="text-align: center; margin-bottom: 20px;">這筆記錄會被刪掉，而且無法復原喔！</p>
       <div style="display: flex; gap: 10px;">
         <button onclick="document.getElementById('deleteModal').style.display='none'" class="btn btn-outline" style="padding:10px; flex: 1;">取消</button>
         <button onclick="executeDelete(this)" class="btn" style="padding:10px; flex: 1; background: #ff4d4f;">確定刪除</button>
@@ -283,7 +288,10 @@
       "食": "#FF6384", "衣": "#36A2EB", "住": "#FFCE56", "行": "#4BC0C0", "育": "#9966FF", "樂": "#FF9F40", "其他": "#8bc34a"
     };
 
-    // 🔴 儲存與讀取使用者帳號
+    function formatMoney(num) {
+      return new Intl.NumberFormat('zh-TW').format(Math.round(num));
+    }
+
     function saveUser() { 
       localStorage.setItem("travel_user_id", document.getElementById('mUser').value); 
     }
@@ -291,11 +299,10 @@
       document.getElementById('mUser').value = localStorage.getItem("travel_user_id") || ""; 
     }
 
-    // 🔴 重設 AI 分析按鈕
     function resetInsightBtn() {
       const btn = document.getElementById('insightBtn');
       btn.disabled = false;
-      btn.innerText = "✨ 重新產生分析";
+      btn.innerText = "✨ 幫我看看花去哪了";
       document.getElementById('aiInsightContent').style.display = 'none';
     }
 
@@ -353,11 +360,12 @@
       try {
         const res = await apiPost({ action: "delete_record", uuids: uuids, trip: document.getElementById('tripName').value }); 
         if (res.success) {
-          resetInsightBtn(); // 解除封鎖
+          navigator.vibrate?.(50); 
+          resetInsightBtn(); 
           refreshAll(true); 
         }
       } catch (e) { 
-        alert("刪除失敗"); 
+        alert("😅 好像有點卡住了，幫我再試一次"); 
       } finally {
         btnEl.disabled = false; 
         btnEl.innerText = "確定刪除"; 
@@ -404,14 +412,24 @@
       renderFavCards(); 
     }
 
-    // 🔴 修改：確保每一筆 API 請求都帶上 userId
+    function getSafeTripName() {
+      let trip = document.getElementById('tripName').value.trim();
+      if (!trip) {
+        const now = new Date();
+        trip = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')} 行程`;
+        document.getElementById('tripName').value = trip;
+      }
+      return trip;
+    }
+
     async function apiPost(payload) { 
       const user = document.getElementById('mUser').value.trim();
-      if (!user) { alert("請先填寫上方「使用者帳號」欄位！"); throw new Error("NoUser"); }
-      
+      if (!user && payload.action !== "parse_ai") { 
+        alert("這項操作需要紀錄你的身分，請先填寫上方「使用者帳號」欄位！"); 
+        throw new Error("NoUser"); 
+      }
       payload.token = APP_TOKEN; 
-      payload.userId = user; 
-      
+      if(user) payload.userId = user; 
       const controller = new AbortController(); 
       const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
@@ -419,7 +437,7 @@
         if (!res.ok) throw new Error(); 
         return await res.json(); 
       } catch (err) { 
-        if(err.message !== "NoUser") throw new Error("連線超時或失敗"); 
+        if(err.message !== "NoUser") throw new Error("📶 網路有點不穩，我們再試一次～"); 
         throw err;
       } finally { 
         clearTimeout(timeoutId); 
@@ -435,40 +453,42 @@
 
     async function submitAI() {
       if (isSubmittingAI) return;
-      
-      // 確保使用者有填寫帳號
-      if(!document.getElementById('mUser').value.trim()) {
-         return alert("解析前請先填寫最上方的「使用者帳號」！");
-      }
-
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
       if (allFiles.length === 0) return alert("請拍照片！");
-      
+      getSafeTripName(); 
+
       isSubmittingAI = true; 
       const btn = document.getElementById('aiBtn');
       const status = document.getElementById('aiStatus');
+      const progressWrap = document.getElementById('progressBarWrap');
+      const progressBar = document.getElementById('progressBar');
       
       document.getElementById('aiPreviewArea').style.display = 'none'; 
       document.getElementById('aiItemList').innerHTML = "";
       btn.disabled = true; 
-      btn.innerText = "⏳ 正在分析...";
+      btn.innerText = "⏳ 旅咖正在看...";
 
-      status.innerHTML = "📷 正在傳送影像到雲端..."; 
-      let msgIndex = 0;
-      const messages = [
-        "🧠 旅咖正在閱讀收據...", 
-        "💰 匯率換算中...",       
-        "📊 正在產生分類明細..."   
-      ];
+      progressWrap.style.display = 'block';
+      let progress = 0;
+      progressBar.style.width = '0%';
       
-      const statusTimer = setInterval(() => {
-        if (msgIndex < messages.length) {
-          status.innerHTML = messages[msgIndex];
+      // 🔴 隨機抽取旅咖語錄，增加活潑感
+      const pool = ["🧠 旅咖正在看收據內容...", "👀 幫你找出每一筆消費...", "💰 幫你算一下匯率...", "📊 幫你分類花費中...", "🧾 整理成好讀的明細...", "🔍 仔細對帳中，等我一下..."];
+      const messages = pool.sort(() => 0.5 - Math.random()).slice(0, 5);
+      let msgIndex = 0;
+      
+      status.style.color = '#1a73e8';
+      status.innerHTML = messages[0];
+      
+      const progressTimer = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 85) progress = 85; 
+        progressBar.style.width = progress + '%';
+        if (msgIndex < messages.length - 1 && progress > (msgIndex + 1) * 20) {
           msgIndex++;
-        } else {
-          clearInterval(statusTimer);
+          status.innerHTML = messages[msgIndex];
         }
-      }, 1500);
+      }, 600);
       
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
@@ -478,16 +498,23 @@
         pendingAiRecords = data.items; 
         renderAIPreview(); 
         
-        clearInterval(statusTimer); 
-        status.innerHTML = "💡 解析完成";
+        clearInterval(progressTimer); 
+        progressBar.style.width = '100%';
+        status.style.color = '#34a853';
+        status.innerHTML = `✨ 收據已經幫你看完囉～`;
+        navigator.vibrate?.([50, 50, 50]); 
+        
       } catch (err) { 
-        clearInterval(statusTimer); 
-        if(err.message !== "NoUser") status.innerHTML = `❌ 失敗，請重試 (${err.message || "未知錯誤"})`; 
+        clearInterval(progressTimer); 
+        progressWrap.style.display = 'none';
+        status.style.color = '#ff4d4f';
+        if(err.message !== "NoUser") status.innerHTML = `😅 好像有點卡住了，幫我再試一次`; 
         else status.innerHTML = "";
       } finally { 
         btn.disabled = false; 
-        btn.innerText = "AI 智慧解析 ✨"; 
+        btn.innerText = "幫我看收據 ✨"; 
         isSubmittingAI = false; 
+        setTimeout(() => { progressWrap.style.display = 'none'; }, 3000); 
       }
     }
 
@@ -520,12 +547,11 @@
       if(pendingAiRecords.length === 0) return;
       const btn = document.getElementById('saveAiBtn');
       const mTotal = Number(document.getElementById('aiTotalInput').value);
-      
-      if (isNaN(mTotal) || mTotal <= 0) return alert("金額錯誤");
+      if (isNaN(mTotal) || mTotal <= 0) return alert("金額好像不太對喔");
       
       const calculatedTotal = pendingAiRecords.reduce((sum, item) => sum + (Number(item.localAmount) || 0), 0);
       const currency = document.getElementById('countryMode').value;
-      const trip = document.getElementById('tripName').value;
+      const trip = getSafeTripName(); 
       const rate = Number(document.getElementById('currentRate').value) || 1;
       const payType = document.querySelector('input[name="aiPayType"]:checked').value;
       const card = document.getElementById('aiCardName').value.trim();
@@ -533,7 +559,6 @@
       
       btn.disabled = true; 
       let toSave = [...pendingAiRecords];
-      
       try {
         if (Math.abs(mTotal - calculatedTotal) > 0.01) {
           const diff = (mTotal - calculatedTotal).toFixed(2);
@@ -542,46 +567,46 @@
         const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI", payment: payMethod }));
         const data = await apiPost({ action: "add_records", records });
         if (!data.success) throw new Error();
-        document.getElementById('aiPreviewArea').style.display = 'none'; 
-        resetForm(); 
         
-        // 🔴 存檔成功，重置分析按鈕並強制更新畫面
+        navigator.vibrate?.(100); 
+        document.getElementById('aiPreviewArea').style.display = 'none'; 
+        document.getElementById('aiStatus').innerHTML = ""; 
+        resetForm(); 
         resetInsightBtn();
-        refreshAll(true); 
+        refreshAll(true);
+        alert("🎉 全部幫你記好了！");
       } catch (err) { 
         if(err.message !== "NoUser") {
-          alert("暫存入佇列，連線時自動補傳"); 
+          alert("📶 網路有點慢，我先把資料存起來，等等幫你傳"); 
           offlineQueue.push(...toSave); 
           saveOfflineQueue(); 
         }
-      } finally { 
-        btn.disabled = false; 
-      }
+      } finally { btn.disabled = false; }
     }
 
     async function submitManual() {
       const btn = document.getElementById('manualBtn');
       const item = document.getElementById('mItem').value.trim();
       const amt = Number(document.getElementById('mAmt').value);
-      
-      if(!item || isNaN(amt) || amt <= 0) return alert("請填寫正確資料");
+      if(!item || isNaN(amt) || amt <= 0) return alert("資料填寫不完整喔");
       
       const payType = document.querySelector('input[name="mPayType"]:checked').value;
       const card = document.getElementById('mCardName').value.trim();
       const payMethod = payType === 'cash' ? 'cash' : `card:${card || '未指定'}`;
       const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
-      const records = [{ datetime: normalizeDateStr(date), item, store: document.getElementById('mStore').value.trim() || "手動", amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: document.getElementById('tripName').value, source: "Manual", payment: payMethod }];
+      const trip = getSafeTripName(); 
+      const records = [{ datetime: normalizeDateStr(date), item, store: document.getElementById('mStore').value.trim() || "手動", amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: trip, source: "Manual", payment: payMethod }];
       
       btn.disabled = true;
       try {
         const data = await apiPost({ action: "add_records", records });
         if(data.success) { 
+          navigator.vibrate?.(50); 
           document.getElementById('mItem').value = ""; 
           document.getElementById('mAmt').value = ""; 
-          
-          // 🔴 存檔成功，重置分析按鈕並強制更新畫面
           resetInsightBtn();
           refreshAll(true); 
+          alert("✅ 已幫你記一筆！");
         }
       } catch (e) { 
         if(e.message !== "NoUser") {
@@ -589,35 +614,33 @@
           saveOfflineQueue(); 
           alert("已存入暫存佇列"); 
         }
-      } finally { 
-        btn.disabled = false; 
-      }
+      } finally { btn.disabled = false; }
     }
 
     async function syncOfflineQueue() {
       if (offlineQueue.length === 0) return;
       try {
         const res = await apiPost({ action: "add_records", records: offlineQueue });
-        if (res.success) { 
-          offlineQueue = []; 
-          saveOfflineQueue(); 
-        }
+        if (res.success) { offlineQueue = []; saveOfflineQueue(); }
       } catch (e) {}
     }
 
     async function refreshAll(force = false) {
-      if(!document.getElementById('mUser').value.trim()) return; // 沒填帳號不拉資料
+      if(!document.getElementById('mUser').value.trim()) {
+        document.getElementById('totalSpent').innerText = "NT$ 0";
+        document.getElementById('recentList').innerHTML = "<p style='text-align:center; color:#999; margin-top:20px;'>還沒有記帳紀錄，開始記第一筆吧 ✍️</p>";
+        document.getElementById('paymentStatsList').innerHTML = "";
+        if (chartInstance) chartInstance.destroy();
+        return; 
+      }
       
       await syncOfflineQueue(); 
-      const trip = document.getElementById('tripName').value;
-      
+      const trip = getSafeTripName(); 
       const refreshBtn = document.querySelector('.refresh-btn');
       if (force && refreshBtn) {
          refreshBtn.style.transform = 'rotate(360deg)';
          refreshBtn.style.transition = 'transform 0.5s';
-         document.getElementById('totalSpent').innerText = "讀取中...";
-         
-         // 🔴 強制重整時，將舊的 AI 診斷隱藏，提示使用者重新產生
+         document.getElementById('totalSpent').innerText = "旅咖正在算...";
          resetInsightBtn();
       }
 
@@ -625,9 +648,9 @@
         const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value, force: force });
         if (data.success) { 
           currentStatsData = data; 
-          document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
+          document.getElementById('totalSpent').innerText = `NT$ ${formatMoney(data.total)}`; 
           renderChart(data.categories); 
-          document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')?k.split(':')[1]:'現金'}</span><b>NT$ ${Math.round(data.payments[k])}</b></div>`).join('') || "暫無統計";
+          document.getElementById('paymentStatsList').innerHTML = Object.keys(data.payments).map(k => `<div class="pay-stat-item"><span>${k.startsWith('card:')? '💳 ' + k.split(':')[1] : '💵 現金'}</span><b>NT$ ${formatMoney(data.payments[k])}</b></div>`).join('') || "暫無統計";
         }
         
         const recent = await apiPost({ action: "get_recent", trip });
@@ -642,41 +665,39 @@
             groups[gid].uuids.push(r.uuid); 
           });
           
-          document.getElementById('recentList').innerHTML = Object.values(groups).map(g => {
+          const groupValues = Object.values(groups);
+          document.getElementById('recentList').innerHTML = groupValues.length > 0 ? groupValues.map(g => {
             const uuidsStr = g.uuids.join(','); 
             const modalHtml = g.items.join('<br>').replace(/"/g, '&quot;');
-            const twdStr = g.currency !== 'TWD' ? `<br><small style="color:#888;">(NT$ ${Math.round(g.twdTotal)})</small>` : '';
+            const twdStr = g.currency !== 'TWD' ? `<br><small style="color:#888;">(NT$ ${formatMoney(g.twdTotal)})</small>` : '';
             
             return `<div class="detail-item" onclick="showItemModal('${modalHtml}')">
               <div class="detail-info"><b>${g.store}</b><br><small>${new Date(g.datetime).toLocaleDateString()} ${g.payment.startsWith('card:')?'💳':'💵'}</small></div>
-              <div class="detail-amt">${Number(g.totalAmount.toFixed(2))} ${g.currency}${twdStr}</div>
+              <div class="detail-amt">${formatMoney(g.totalAmount)} ${g.currency}${twdStr}</div>
               <button onclick="event.stopPropagation(); confirmDelete('${uuidsStr}')" class="del-btn">🗑️</button></div>`;
-          }).join('') || "無紀錄";
+          }).join('') : "<p style='text-align:center; color:#999; margin-top:20px;'>還沒有記帳紀錄，開始記第一筆吧 ✍️</p>";
         }
       } catch (e) {} finally {
-         if (force && refreshBtn) {
-           setTimeout(() => { refreshBtn.style.transform = 'none'; refreshBtn.style.transition = 'none'; }, 500);
-         }
+         if (force && refreshBtn) setTimeout(() => { refreshBtn.style.transform = 'none'; refreshBtn.style.transition = 'none'; }, 500);
       }
     }
     
     async function fetchAIInsight() {
-      if (!currentStatsData || currentStatsData.total === 0) return alert("目前還沒有記帳紀錄喔！");
+      if (!currentStatsData || currentStatsData.total === 0) return alert("目前還沒有資料可以分析喔！");
       const btn = document.getElementById('insightBtn');
       const content = document.getElementById('aiInsightContent');
-      
       btn.disabled = true; 
-      btn.innerText = "⏳ AI 分析中..."; 
+      btn.innerText = "⏳ 旅咖思考中..."; 
       content.style.display = 'block'; 
-      content.innerHTML = "<i>分析中...</i>";
+      content.innerHTML = "<i>🧠 我幫你分析花費習慣中...</i>";
       try {
         const res = await apiPost({ action: "analyze_stats", stats: currentStatsData });
         content.innerHTML = res.insight.replace(/\n/g, '<br>'); 
-        btn.innerText = "✅ 完成";
+        btn.innerText = "✅ 看完囉";
       } catch (e) { 
         content.innerHTML = "❌ 失敗"; 
         btn.disabled = false; 
-        btn.innerText = "✨ 重試"; 
+        btn.innerText = "✨ 重推"; 
       }
     }
 
@@ -690,12 +711,11 @@
       if (total === 0) {
         chartInstance = new Chart(ctx, { 
           type: 'doughnut', 
-          data: { labels: ['無資料'], datasets: [{ data: [1], backgroundColor: ['#e0e0e0'] }] }, 
+          data: { labels: ['目前還沒有花費資料'], datasets: [{ data: [1], backgroundColor: ['#f0f0f0'] }] }, 
           options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } 
         });
         return;
       }
-      
       chartInstance = new Chart(ctx, { 
         type: 'doughnut', 
         data: { labels, datasets: [{ data, backgroundColor: labels.map(l => CHART_COLORS[l] || '#ccc') }] }, 
@@ -712,15 +732,8 @@
           i.src = e.target.result; 
           i.onload = () => { 
             const c = document.createElement('canvas'); 
-            let w = i.width, h = i.height; 
-            let m = 600; 
-            
-            if (w > h) { 
-              if (w > m) { h *= m/w; w = m; } 
-            } else { 
-              if (h > m) { w *= m/h; h = m; } 
-            } 
-            
+            let w = i.width, h = i.height, m = 600; 
+            if (w > h) { if (w > m) { h *= m/w; w = m; } } else { if (h > m) { w *= m/h; h = m; } } 
             c.width = w; c.height = h; 
             c.getContext('2d').drawImage(i, 0, 0, w, h); 
             res(c.toDataURL('image/jpeg', 0.6).split(',')[1]); 
@@ -766,17 +779,13 @@
       const now = new Date(); 
       const offset = now.getTimezoneOffset() * 60000;
       const localISOTime = (new Date(now - offset)).toISOString();
-      
       document.getElementById('mDate').value = localISOTime.split('T')[0]; 
       document.getElementById('mTime').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0'); 
       handleCountryChange(); 
       renderFavCards(); 
     }
 
-    window.onload = () => {
-      loadUser(); // 🔴 啟動時讀取使用者帳號
-      setDefaultTime();
-    };
+    window.onload = () => { loadUser(); setDefaultTime(); };
   </script>
 </body>
 </html>
