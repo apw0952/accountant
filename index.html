@@ -324,7 +324,7 @@
       btnEl.innerText = "🗑️ 刪除中...";
       const uuids = pendingDeleteUuids.split(',');
       try {
-        const res = await apiPost({ action: "delete_record", uuids: uuids, token: APP_TOKEN }); 
+        const res = await apiPost({ action: "delete_record", uuids: uuids }); 
         if (res.success) refreshAll(); 
       } catch (e) { 
         alert("刪除失敗"); 
@@ -374,7 +374,9 @@
       renderFavCards(); 
     }
 
+    // 🔴 修正：直接在共用的 apiPost 函數中自動加入 token，確保所有的請求都會帶上暗號
     async function apiPost(payload) { 
+      payload.token = APP_TOKEN; // 確保與 GAS 後端檢查對接
       const controller = new AbortController(); 
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
@@ -431,6 +433,7 @@
       
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
+        // 已經在 apiPost 內處理了 token
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
         
@@ -441,7 +444,7 @@
         status.innerHTML = "💡 解析完成";
       } catch (err) { 
         clearInterval(statusTimer); // 失敗時立刻停止計時器
-        status.innerHTML = "❌ 失敗，請重試"; 
+        status.innerHTML = `❌ 失敗，請重試 (${err.message || "未知錯誤"})`; 
       } finally { 
         btn.disabled = false; 
         btn.innerText = "AI 智慧解析 ✨"; 
