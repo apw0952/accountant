@@ -36,8 +36,12 @@
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
     
-    .manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-    .manual-grid input, .manual-grid select { margin-bottom: 0; }
+    /* 修改這裡：解決方框重疊問題 */
+    .manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+    .manual-grid input, .manual-grid select { margin-bottom: 0; width: 100%; box-sizing: border-box; min-width: 0; height: 48px; }
+    .manual-grid input[type="date"], .manual-grid input[type="time"] { background-color: #fafafa; color: #555; }
+    @media screen and (max-width: 375px) { .manual-grid { gap: 8px; } }
+    
     .full-row { grid-column: span 2; }
 
     .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
@@ -391,6 +395,7 @@
       return new Date(p - o).toISOString().slice(0, -1); 
     }
 
+    // 更新：加入 1.5 秒輪播提示文字的 AI 辨識按鈕
     async function submitAI() {
       if (isSubmittingAI) return;
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
@@ -404,15 +409,38 @@
       document.getElementById('aiItemList').innerHTML = "";
       btn.disabled = true; 
       btn.innerText = "⏳ 正在分析...";
+
+      // --- 加入 UX 輪播文字魔法 ---
+      status.innerHTML = "📷 正在傳送影像到雲端..."; // 0s
+      let msgIndex = 0;
+      const messages = [
+        "🧠 旅咖正在閱讀收據...", // 1.5s
+        "💰 匯率換算中...",       // 3.0s
+        "📊 正在產生分類明細..."   // 4.5s
+      ];
+      
+      const statusTimer = setInterval(() => {
+        if (msgIndex < messages.length) {
+          status.innerHTML = messages[msgIndex];
+          msgIndex++;
+        } else {
+          clearInterval(statusTimer);
+        }
+      }, 1500);
+      // -----------------------------
       
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
+        
         pendingAiRecords = data.items; 
         renderAIPreview(); 
+        
+        clearInterval(statusTimer); // 成功時立刻停止計時器
         status.innerHTML = "💡 解析完成";
       } catch (err) { 
+        clearInterval(statusTimer); // 失敗時立刻停止計時器
         status.innerHTML = "❌ 失敗，請重試"; 
       } finally { 
         btn.disabled = false; 
@@ -602,6 +630,7 @@
       }); 
     }
 
+    // 更新：圖片壓縮尺寸改為 600，且正確判斷長短邊
     async function compressImg(f) { 
       return new Promise(res => { 
         const r = new FileReader(); 
@@ -612,7 +641,14 @@
           i.onload = () => { 
             const c = document.createElement('canvas'); 
             let w = i.width, h = i.height; 
-            if (w > 800) { h *= 800/w; w = 800; } 
+            let m = 600; 
+            
+            if (w > h) { 
+              if (w > m) { h *= m/w; w = m; } 
+            } else { 
+              if (h > m) { w *= m/h; h = m; } 
+            } 
+            
             c.width = w; c.height = h; 
             c.getContext('2d').drawImage(i, 0, 0, w, h); 
             res(c.toDataURL('image/jpeg', 0.6).split(',')[1]); 
@@ -654,10 +690,14 @@
       } catch (e) {} 
     }
     
+    // 更新：修正時區偏移，解決開啟 App 日期不準的問題
     function setDefaultTime() { 
       const now = new Date(); 
-      document.getElementById('mDate').value = now.toISOString().split('T')[0]; 
-      document.getElementById('mTime').value = now.toTimeString().slice(0,5); 
+      const offset = now.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(now - offset)).toISOString();
+      
+      document.getElementById('mDate').value = localISOTime.split('T')[0]; 
+      document.getElementById('mTime').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0'); 
       handleCountryChange(); 
       renderFavCards(); 
     }
