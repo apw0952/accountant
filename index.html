@@ -20,13 +20,16 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 20px; }
     .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
     
-    /* 標題與 Logo 樣式優化 (上下編排設計) */
     .title { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 10px 0; margin-bottom: 10px; }
     .title img { height: 56px; width: 56px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .title-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
     .brand-name { font-size: 24px; font-weight: 800; color: #5d4037; letter-spacing: 1px; }
     .brand-sub { font-size: 13px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 3px; margin-top: 4px; opacity: 0.9; }
     
+    /* 🔴 新增：使用者名稱輸入框樣式 */
+    .user-box { background: #e3f2fd; padding: 8px 15px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; border: 1px solid #bbdefb; }
+    .user-box input { border: none; background: white; padding: 8px; border-radius: 5px; flex: 1; font-weight: bold; color: var(--accent); margin-bottom: 0; }
+
     .tabs { display: flex; gap: 10px; }
     .tab-btn { flex: 1; padding: 12px; text-align: center; font-size: 17px; font-weight: bold; color: #888; background: transparent; border: none; border-bottom: 3px solid transparent; cursor: pointer; transition: 0.3s; }
     .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
@@ -36,11 +39,9 @@
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
     
-    /* 🔴 修正：徹底解決方框重疊問題，改用 Flexbox 自動折行 */
     .manual-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
     .manual-grid input, .manual-grid select { margin-bottom: 0; width: 100%; box-sizing: border-box; flex: 1 1 calc(50% - 10px); min-width: 130px; height: 48px; }
     .manual-grid input[type="date"], .manual-grid input[type="time"] { background-color: #fafafa; color: #555; }
-    /* 極小螢幕（如舊版 iPhone）時，自動將輸入框轉為上下排列，絕不重疊 */
     @media screen and (max-width: 350px) { .manual-grid input, .manual-grid select { flex: 1 1 100%; } }
     
     .full-row { flex: 1 1 100% !important; }
@@ -114,6 +115,12 @@
         <span class="brand-sub">AI 記帳助手</span>
       </div>
     </div>
+    
+    <div class="user-box">
+      <span style="font-size: 13px; font-weight: bold; color: #1565c0;">👤 使用者帳號:</span>
+      <input type="text" id="mUser" placeholder="輸入你的名字(如: Amy)" onchange="saveUser()">
+    </div>
+
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('record', this)">📝 記帳</button>
       <button class="tab-btn" onclick="switchTab('report', this)">📊 分析報表</button>
@@ -208,10 +215,13 @@
   <div id="report" class="tab-content">
     <div class="card">
       <div class="section-title">📅 期間統計</div>
-      <select id="dateRange" onchange="toggleCustomDate(); refreshAll(false);">
+      <select id="dateRange" onchange="toggleCustomDate(); resetInsightBtn(); refreshAll(false);">
         <option value="today">本日</option><option value="month" selected>本月</option><option value="custom">自訂區間</option>
       </select>
-      <div id="customDateContainer" style="display: none; gap: 5px; margin-top: 10px;"><input type="date" id="startDate" onchange="refreshAll(false)"><input type="date" id="endDate" onchange="refreshAll(false)"></div>
+      <div id="customDateContainer" style="display: none; gap: 5px; margin-top: 10px;">
+        <input type="date" id="startDate" onchange="resetInsightBtn(); refreshAll(false);">
+        <input type="date" id="endDate" onchange="resetInsightBtn(); refreshAll(false);">
+      </div>
       
       <div class="summary-box">
         <div class="refresh-btn" onclick="refreshAll(true)">🔄</div>
@@ -273,6 +283,22 @@
       "食": "#FF6384", "衣": "#36A2EB", "住": "#FFCE56", "行": "#4BC0C0", "育": "#9966FF", "樂": "#FF9F40", "其他": "#8bc34a"
     };
 
+    // 🔴 儲存與讀取使用者帳號
+    function saveUser() { 
+      localStorage.setItem("travel_user_id", document.getElementById('mUser').value); 
+    }
+    function loadUser() { 
+      document.getElementById('mUser').value = localStorage.getItem("travel_user_id") || ""; 
+    }
+
+    // 🔴 重設 AI 分析按鈕
+    function resetInsightBtn() {
+      const btn = document.getElementById('insightBtn');
+      btn.disabled = false;
+      btn.innerText = "✨ 重新產生分析";
+      document.getElementById('aiInsightContent').style.display = 'none';
+    }
+
     function handleImgClick(e, n) { 
       const input = document.getElementById('pic' + n); 
       if (input.files?.length > 0) { 
@@ -325,8 +351,11 @@
       btnEl.innerText = "🗑️ 刪除中...";
       const uuids = pendingDeleteUuids.split(',');
       try {
-        const res = await apiPost({ action: "delete_record", uuids: uuids }); 
-        if (res.success) refreshAll(true); // 刪除後強制更新畫面
+        const res = await apiPost({ action: "delete_record", uuids: uuids, trip: document.getElementById('tripName').value }); 
+        if (res.success) {
+          resetInsightBtn(); // 解除封鎖
+          refreshAll(true); 
+        }
       } catch (e) { 
         alert("刪除失敗"); 
       } finally {
@@ -375,8 +404,14 @@
       renderFavCards(); 
     }
 
+    // 🔴 修改：確保每一筆 API 請求都帶上 userId
     async function apiPost(payload) { 
+      const user = document.getElementById('mUser').value.trim();
+      if (!user) { alert("請先填寫上方「使用者帳號」欄位！"); throw new Error("NoUser"); }
+      
       payload.token = APP_TOKEN; 
+      payload.userId = user; 
+      
       const controller = new AbortController(); 
       const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
@@ -384,7 +419,8 @@
         if (!res.ok) throw new Error(); 
         return await res.json(); 
       } catch (err) { 
-        throw new Error("連線超時或失敗"); 
+        if(err.message !== "NoUser") throw new Error("連線超時或失敗"); 
+        throw err;
       } finally { 
         clearTimeout(timeoutId); 
       }
@@ -399,6 +435,12 @@
 
     async function submitAI() {
       if (isSubmittingAI) return;
+      
+      // 確保使用者有填寫帳號
+      if(!document.getElementById('mUser').value.trim()) {
+         return alert("解析前請先填寫最上方的「使用者帳號」！");
+      }
+
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
       if (allFiles.length === 0) return alert("請拍照片！");
       
@@ -440,7 +482,8 @@
         status.innerHTML = "💡 解析完成";
       } catch (err) { 
         clearInterval(statusTimer); 
-        status.innerHTML = `❌ 失敗，請重試 (${err.message || "未知錯誤"})`; 
+        if(err.message !== "NoUser") status.innerHTML = `❌ 失敗，請重試 (${err.message || "未知錯誤"})`; 
+        else status.innerHTML = "";
       } finally { 
         btn.disabled = false; 
         btn.innerText = "AI 智慧解析 ✨"; 
@@ -501,11 +544,16 @@
         if (!data.success) throw new Error();
         document.getElementById('aiPreviewArea').style.display = 'none'; 
         resetForm(); 
-        refreshAll(true); // 🔴 送出後強制更新畫面
+        
+        // 🔴 存檔成功，重置分析按鈕並強制更新畫面
+        resetInsightBtn();
+        refreshAll(true); 
       } catch (err) { 
-        alert("暫存入佇列，連線時自動補傳"); 
-        offlineQueue.push(...toSave); 
-        saveOfflineQueue(); 
+        if(err.message !== "NoUser") {
+          alert("暫存入佇列，連線時自動補傳"); 
+          offlineQueue.push(...toSave); 
+          saveOfflineQueue(); 
+        }
       } finally { 
         btn.disabled = false; 
       }
@@ -530,12 +578,17 @@
         if(data.success) { 
           document.getElementById('mItem').value = ""; 
           document.getElementById('mAmt').value = ""; 
-          refreshAll(true); // 🔴 手動送出後強制更新畫面
+          
+          // 🔴 存檔成功，重置分析按鈕並強制更新畫面
+          resetInsightBtn();
+          refreshAll(true); 
         }
       } catch (e) { 
-        offlineQueue.push(...records); 
-        saveOfflineQueue(); 
-        alert("已存入暫存佇列"); 
+        if(e.message !== "NoUser") {
+          offlineQueue.push(...records); 
+          saveOfflineQueue(); 
+          alert("已存入暫存佇列"); 
+        }
       } finally { 
         btn.disabled = false; 
       }
@@ -552,8 +605,9 @@
       } catch (e) {}
     }
 
-    // 🔴 修正：新增 force 參數，並加入重整的動態視覺回饋
     async function refreshAll(force = false) {
+      if(!document.getElementById('mUser').value.trim()) return; // 沒填帳號不拉資料
+      
       await syncOfflineQueue(); 
       const trip = document.getElementById('tripName').value;
       
@@ -564,8 +618,7 @@
          document.getElementById('totalSpent').innerText = "讀取中...";
          
          // 🔴 強制重整時，將舊的 AI 診斷隱藏，提示使用者重新產生
-         document.getElementById('aiInsightContent').style.display = 'none';
-         document.getElementById('insightBtn').innerText = "✨ 重新產生分析";
+         resetInsightBtn();
       }
 
       try {
@@ -582,10 +635,9 @@
           const groups = {};
           recent.records.forEach(r => {
             const gid = r.groupId || r.uuid; 
-            // 🔴 確保 group 裡有 twdTotal 屬性用來累加台幣
             if (!groups[gid]) groups[gid] = { store: r.store, payment: r.payment, datetime: r.datetime, currency: r.currency, totalAmount: 0, twdTotal: 0, items: [], uuids: [] };
             groups[gid].totalAmount += Number(r.amount); 
-            groups[gid].twdTotal += Number(r.twd || 0); // 累加來自 GAS 的台幣金額
+            groups[gid].twdTotal += Number(r.twd || 0); 
             groups[gid].items.push(`▪️ ${r.item} ($${r.amount})`); 
             groups[gid].uuids.push(r.uuid); 
           });
@@ -593,8 +645,6 @@
           document.getElementById('recentList').innerHTML = Object.values(groups).map(g => {
             const uuidsStr = g.uuids.join(','); 
             const modalHtml = g.items.join('<br>').replace(/"/g, '&quot;');
-            
-            // 🔴 修正：如果是外幣，顯示換算後的台幣小括號
             const twdStr = g.currency !== 'TWD' ? `<br><small style="color:#888;">(NT$ ${Math.round(g.twdTotal)})</small>` : '';
             
             return `<div class="detail-item" onclick="showItemModal('${modalHtml}')">
@@ -611,7 +661,7 @@
     }
     
     async function fetchAIInsight() {
-      if (!currentStatsData || currentStatsData.total === 0) return;
+      if (!currentStatsData || currentStatsData.total === 0) return alert("目前還沒有記帳紀錄喔！");
       const btn = document.getElementById('insightBtn');
       const content = document.getElementById('aiInsightContent');
       
@@ -723,7 +773,10 @@
       renderFavCards(); 
     }
 
-    window.onload = setDefaultTime;
+    window.onload = () => {
+      loadUser(); // 🔴 啟動時讀取使用者帳號
+      setDefaultTime();
+    };
   </script>
 </body>
 </html>
