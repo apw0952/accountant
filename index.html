@@ -378,7 +378,7 @@
     async function apiPost(payload) { 
       payload.token = APP_TOKEN; // 確保與 GAS 後端檢查對接
       const controller = new AbortController(); 
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
         const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload), signal: controller.signal }); 
         if (!res.ok) throw new Error(); 
