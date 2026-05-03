@@ -36,13 +36,14 @@
     .section-title { font-size: 15px; font-weight: bold; margin-bottom: 12px; display: flex; align-items: center; gap: 5px; }
     input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; margin-bottom: 10px; font-size: 15px; background: white; }
     
-    /* 修改這裡：解決方框重疊問題 */
-    .manual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
-    .manual-grid input, .manual-grid select { margin-bottom: 0; width: 100%; box-sizing: border-box; min-width: 0; height: 48px; }
+    /* 🔴 修正：徹底解決方框重疊問題，改用 Flexbox 自動折行 */
+    .manual-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .manual-grid input, .manual-grid select { margin-bottom: 0; width: 100%; box-sizing: border-box; flex: 1 1 calc(50% - 10px); min-width: 130px; height: 48px; }
     .manual-grid input[type="date"], .manual-grid input[type="time"] { background-color: #fafafa; color: #555; }
-    @media screen and (max-width: 375px) { .manual-grid { gap: 8px; } }
+    /* 極小螢幕（如舊版 iPhone）時，自動將輸入框轉為上下排列，絕不重疊 */
+    @media screen and (max-width: 350px) { .manual-grid input, .manual-grid select { flex: 1 1 100%; } }
     
-    .full-row { grid-column: span 2; }
+    .full-row { flex: 1 1 100% !important; }
 
     .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 12px; font-size: 16px; font-weight: bold; width: 100%; cursor: pointer; }
     .btn:disabled { background: #ccc; cursor: not-allowed; }
@@ -207,13 +208,13 @@
   <div id="report" class="tab-content">
     <div class="card">
       <div class="section-title">📅 期間統計</div>
-      <select id="dateRange" onchange="toggleCustomDate(); refreshAll();">
+      <select id="dateRange" onchange="toggleCustomDate(); refreshAll(false);">
         <option value="today">本日</option><option value="month" selected>本月</option><option value="custom">自訂區間</option>
       </select>
-      <div id="customDateContainer" style="display: none; gap: 5px; margin-top: 10px;"><input type="date" id="startDate" onchange="refreshAll()"><input type="date" id="endDate" onchange="refreshAll()"></div>
+      <div id="customDateContainer" style="display: none; gap: 5px; margin-top: 10px;"><input type="date" id="startDate" onchange="refreshAll(false)"><input type="date" id="endDate" onchange="refreshAll(false)"></div>
       
       <div class="summary-box">
-        <div class="refresh-btn" onclick="refreshAll()">🔄</div>
+        <div class="refresh-btn" onclick="refreshAll(true)">🔄</div>
         <div style="font-size:14px; color:#666;">期間總花費 (TWD)</div>
         <div class="total-amt" id="totalSpent">NT$ 0</div>
       </div>
@@ -325,7 +326,7 @@
       const uuids = pendingDeleteUuids.split(',');
       try {
         const res = await apiPost({ action: "delete_record", uuids: uuids }); 
-        if (res.success) refreshAll(); 
+        if (res.success) refreshAll(true); // 刪除後強制更新畫面
       } catch (e) { 
         alert("刪除失敗"); 
       } finally {
@@ -374,9 +375,8 @@
       renderFavCards(); 
     }
 
-    // 🔴 修正：直接在共用的 apiPost 函數中自動加入 token，確保所有的請求都會帶上暗號
     async function apiPost(payload) { 
-      payload.token = APP_TOKEN; // 確保與 GAS 後端檢查對接
+      payload.token = APP_TOKEN; 
       const controller = new AbortController(); 
       const timeoutId = setTimeout(() => controller.abort(), 45000);
       try {
@@ -397,7 +397,6 @@
       return new Date(p - o).toISOString().slice(0, -1); 
     }
 
-    // 更新：加入 1.5 秒輪播提示文字的 AI 辨識按鈕
     async function submitAI() {
       if (isSubmittingAI) return;
       const allFiles = [...document.getElementById('pic1').files, ...document.getElementById('pic2').files, ...document.getElementById('pic3').files, ...document.getElementById('album').files].slice(0, 5);
@@ -412,13 +411,12 @@
       btn.disabled = true; 
       btn.innerText = "⏳ 正在分析...";
 
-      // --- 加入 UX 輪播文字魔法 ---
-      status.innerHTML = "📷 正在傳送影像到雲端..."; // 0s
+      status.innerHTML = "📷 正在傳送影像到雲端..."; 
       let msgIndex = 0;
       const messages = [
-        "🧠 旅咖正在閱讀收據...", // 1.5s
-        "💰 匯率換算中...",       // 3.0s
-        "📊 正在產生分類明細..."   // 4.5s
+        "🧠 旅咖正在閱讀收據...", 
+        "💰 匯率換算中...",       
+        "📊 正在產生分類明細..."   
       ];
       
       const statusTimer = setInterval(() => {
@@ -429,21 +427,19 @@
           clearInterval(statusTimer);
         }
       }, 1500);
-      // -----------------------------
       
       try {
         const base64Imgs = await Promise.all(allFiles.map(f => compressImg(f)));
-        // 已經在 apiPost 內處理了 token
         const data = await apiPost({ action: "parse_ai", images: base64Imgs, context: { currency: document.getElementById('countryMode').value, country: document.querySelector('#countryMode option:checked').text } });
         if (!data.success) throw new Error(data.message);
         
         pendingAiRecords = data.items; 
         renderAIPreview(); 
         
-        clearInterval(statusTimer); // 成功時立刻停止計時器
+        clearInterval(statusTimer); 
         status.innerHTML = "💡 解析完成";
       } catch (err) { 
-        clearInterval(statusTimer); // 失敗時立刻停止計時器
+        clearInterval(statusTimer); 
         status.innerHTML = `❌ 失敗，請重試 (${err.message || "未知錯誤"})`; 
       } finally { 
         btn.disabled = false; 
@@ -505,7 +501,7 @@
         if (!data.success) throw new Error();
         document.getElementById('aiPreviewArea').style.display = 'none'; 
         resetForm(); 
-        refreshAll();
+        refreshAll(true); // 🔴 送出後強制更新畫面
       } catch (err) { 
         alert("暫存入佇列，連線時自動補傳"); 
         offlineQueue.push(...toSave); 
@@ -534,7 +530,7 @@
         if(data.success) { 
           document.getElementById('mItem').value = ""; 
           document.getElementById('mAmt').value = ""; 
-          refreshAll(); 
+          refreshAll(true); // 🔴 手動送出後強制更新畫面
         }
       } catch (e) { 
         offlineQueue.push(...records); 
@@ -556,11 +552,24 @@
       } catch (e) {}
     }
 
-    async function refreshAll() {
+    // 🔴 修正：新增 force 參數，並加入重整的動態視覺回饋
+    async function refreshAll(force = false) {
       await syncOfflineQueue(); 
       const trip = document.getElementById('tripName').value;
+      
+      const refreshBtn = document.querySelector('.refresh-btn');
+      if (force && refreshBtn) {
+         refreshBtn.style.transform = 'rotate(360deg)';
+         refreshBtn.style.transition = 'transform 0.5s';
+         document.getElementById('totalSpent').innerText = "讀取中...";
+         
+         // 🔴 強制重整時，將舊的 AI 診斷隱藏，提示使用者重新產生
+         document.getElementById('aiInsightContent').style.display = 'none';
+         document.getElementById('insightBtn').innerText = "✨ 重新產生分析";
+      }
+
       try {
-        const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value });
+        const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value, force: force });
         if (data.success) { 
           currentStatsData = data; 
           document.getElementById('totalSpent').innerText = `NT$ ${data.total}`; 
@@ -573,21 +582,32 @@
           const groups = {};
           recent.records.forEach(r => {
             const gid = r.groupId || r.uuid; 
-            if (!groups[gid]) groups[gid] = { store: r.store, payment: r.payment, datetime: r.datetime, currency: r.currency, totalAmount: 0, items: [], uuids: [] };
+            // 🔴 確保 group 裡有 twdTotal 屬性用來累加台幣
+            if (!groups[gid]) groups[gid] = { store: r.store, payment: r.payment, datetime: r.datetime, currency: r.currency, totalAmount: 0, twdTotal: 0, items: [], uuids: [] };
             groups[gid].totalAmount += Number(r.amount); 
+            groups[gid].twdTotal += Number(r.twd || 0); // 累加來自 GAS 的台幣金額
             groups[gid].items.push(`▪️ ${r.item} ($${r.amount})`); 
             groups[gid].uuids.push(r.uuid); 
           });
+          
           document.getElementById('recentList').innerHTML = Object.values(groups).map(g => {
             const uuidsStr = g.uuids.join(','); 
             const modalHtml = g.items.join('<br>').replace(/"/g, '&quot;');
+            
+            // 🔴 修正：如果是外幣，顯示換算後的台幣小括號
+            const twdStr = g.currency !== 'TWD' ? `<br><small style="color:#888;">(NT$ ${Math.round(g.twdTotal)})</small>` : '';
+            
             return `<div class="detail-item" onclick="showItemModal('${modalHtml}')">
               <div class="detail-info"><b>${g.store}</b><br><small>${new Date(g.datetime).toLocaleDateString()} ${g.payment.startsWith('card:')?'💳':'💵'}</small></div>
-              <div class="detail-amt">${Number(g.totalAmount.toFixed(2))} ${g.currency}</div>
+              <div class="detail-amt">${Number(g.totalAmount.toFixed(2))} ${g.currency}${twdStr}</div>
               <button onclick="event.stopPropagation(); confirmDelete('${uuidsStr}')" class="del-btn">🗑️</button></div>`;
           }).join('') || "無紀錄";
         }
-      } catch (e) {}
+      } catch (e) {} finally {
+         if (force && refreshBtn) {
+           setTimeout(() => { refreshBtn.style.transform = 'none'; refreshBtn.style.transition = 'none'; }, 500);
+         }
+      }
     }
     
     async function fetchAIInsight() {
@@ -633,7 +653,6 @@
       }); 
     }
 
-    // 更新：圖片壓縮尺寸改為 600，且正確判斷長短邊
     async function compressImg(f) { 
       return new Promise(res => { 
         const r = new FileReader(); 
@@ -670,7 +689,7 @@
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
       document.getElementById(id).classList.add('active'); 
       el.classList.add('active'); 
-      if(id === 'report') refreshAll(); 
+      if(id === 'report') refreshAll(false); 
     }
 
     function toggleCustomDate() { 
@@ -693,7 +712,6 @@
       } catch (e) {} 
     }
     
-    // 更新：修正時區偏移，解決開啟 App 日期不準的問題
     function setDefaultTime() { 
       const now = new Date(); 
       const offset = now.getTimezoneOffset() * 60000;
