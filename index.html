@@ -18,11 +18,7 @@
   <style>
     :root { --primary: #34a853; --bg: #f4f7f6; --text: #333; --accent: #1a73e8; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 20px; }
-    
-    /* 🔴 新增：離線 Banner */
-    #offlineBanner { display: none; background: #ff4d4f; color: white; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; position: sticky; top: 0; z-index: 1000; }
-    
-    .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 99; }
+    .header { background: white; padding: 15px 20px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; }
     
     .title { display: flex; align-items: center; justify-content: center; gap: 15px; padding: 10px 0; margin-bottom: 10px; }
     .title img { height: 56px; width: 56px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -69,8 +65,8 @@
     .fav-card-del { margin-left: 5px; color: #ff4d4f; cursor: pointer; font-weight: bold; }
     
     #aiPreviewArea { margin-top: 15px; border-top: 2px solid #eee; padding-top: 15px; display: none; }
-    .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); }
-    .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; width: 100%; }
+    .preview-item { background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--accent); transition: border 0.3s; }
+    .preview-item input { padding: 8px; margin-bottom: 5px; font-size: 13px; border: 1px solid #ddd; width: 100%; box-sizing: border-box; }
     
     .ai-summary-row { background: #fff4e5; padding: 15px; border-radius: 10px; margin-top: 10px; margin-bottom: 15px; border: 2px solid #f29900; }
     .total-input-box { font-size: 24px; font-weight: bold; color: #d44a00; border: 1px solid #f29900; background: white; padding: 5px 10px; border-radius: 8px; width: 140px; text-align: right; }
@@ -88,7 +84,6 @@
     .summary-box { background: #e8f5e9; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px; position: relative;}
     .refresh-btn { position: absolute; right: 15px; top: 15px; background: white; border: 1px solid #ddd; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     
-    /* 🔴 新增：Skeleton 載入骨架樣式 */
     .total-amt { font-size: 32px; font-weight: bold; color: #2e7d32; margin-top: 5px; display: inline-block; min-width: 150px; min-height: 38px;}
     .skeleton { background: linear-gradient(90deg, #c8e6c9 25%, #a5d6a7 50%, #c8e6c9 75%); background-size: 200% 100%; animation: loading 1.5s infinite; color: transparent !important; border-radius: 8px; }
     @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -104,10 +99,13 @@
     .ai-insight-box { background: #fff8e1; border-radius: 12px; padding: 15px; margin-bottom: 20px; border: 1px solid #ffe082; }
     .insight-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #d4a100; font-size: 15px; }
     .insight-btn { background: #f29900; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    .insight-btn:disabled { background: #ccc; cursor: not-allowed; }
     #aiInsightContent { font-size: 14px; color: #444; margin-top: 12px; line-height: 1.6; display: none; text-align: left; background: white; padding: 10px; border-radius: 8px; }
 
     .install-guide { background: #e3f2fd; border: 1px solid #90caf9; border-radius: 12px; padding: 15px; font-size: 13px; color: #1565c0; line-height: 1.5; margin-top: 10px; }
     .install-guide b { color: #0d47a1; display: block; margin-bottom: 5px; font-size: 14px; }
+    
+    #offlineBanner { display: none; background: #ff4d4f; color: white; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; position: sticky; top: 0; z-index: 1000; }
   </style>
 </head>
 <body>
@@ -289,10 +287,12 @@
     const STORAGE_KEY = "myFavCards_v1";
     const OFFLINE_KEY = "offlineQueue_v1"; 
     const TRIPS_KEY = "savedTrips_v1";
+    const CAT_LEARN_KEY = "aiCategoryMemory_v1"; // 🔴 自動分類記憶
     
     let favoriteCards = JSON.parse(localStorage.getItem(STORAGE_KEY)) || ["國泰 CUBE卡"];
     let offlineQueue = JSON.parse(localStorage.getItem(OFFLINE_KEY)) || []; 
     let savedTrips = JSON.parse(localStorage.getItem(TRIPS_KEY)) || ["我的旅行"]; 
+    let categoryMemory = JSON.parse(localStorage.getItem(CAT_LEARN_KEY)) || {}; 
     
     let chartInstance = null, pendingAiRecords = [];
     let pendingDeleteUuids = ""; 
@@ -303,11 +303,10 @@
       "食": "#FF6384", "衣": "#36A2EB", "住": "#FFCE56", "行": "#4BC0C0", "育": "#9966FF", "樂": "#FF9F40", "其他": "#8bc34a"
     };
 
-    // 🔴 監聽離線與上線狀態
     window.addEventListener('offline', () => { document.getElementById('offlineBanner').style.display = 'block'; });
     window.addEventListener('online', () => { 
       document.getElementById('offlineBanner').style.display = 'none'; 
-      syncOfflineQueue(); // 恢復連線自動補傳
+      syncOfflineQueue(); 
     });
 
     function formatMoney(num) {
@@ -384,14 +383,13 @@
 
     function confirmDelete(uuidsStr) { 
       pendingDeleteUuids = uuidsStr; 
-      document.getElementById('delConfirmInput').value = ''; // 清空輸入框
+      document.getElementById('delConfirmInput').value = ''; 
       document.getElementById('deleteModal').style.display = 'flex'; 
     }
 
     async function executeDelete(btnEl) {
       if (!pendingDeleteUuids) return;
       
-      // 🔴 刪除二次確認防誤觸
       if (document.getElementById('delConfirmInput').value !== 'DELETE') {
          alert("請正確輸入大寫 DELETE 以確認刪除");
          return;
@@ -408,7 +406,7 @@
           refreshAll(true); 
         }
       } catch (e) { 
-        navigator.vibrate?.([100, 50, 100]); // 錯誤長震動
+        navigator.vibrate?.([100, 50, 100]); 
         alert("😅 好像有點卡住了，幫我再試一次"); 
       } finally {
         btnEl.disabled = false; 
@@ -463,7 +461,7 @@
         trip = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')} 行程`;
         document.getElementById('tripName').value = trip;
       }
-      saveTripName(trip); // 自動加入清單
+      saveTripName(trip); 
       return trip;
     }
 
@@ -552,7 +550,7 @@
         clearInterval(progressTimer); 
         progressWrap.style.display = 'none';
         status.style.color = '#ff4d4f';
-        navigator.vibrate?.([100, 50, 100]); // 錯誤震動
+        navigator.vibrate?.([100, 50, 100]); 
         if(err.message !== "NoUser") status.innerHTML = `😅 好像有點卡住了，幫我再試一次`; 
         else status.innerHTML = "";
       } finally { 
@@ -570,10 +568,20 @@
       document.getElementById('aiCurrencyLabel').innerText = document.getElementById('countryMode').value;
       
       pendingAiRecords.forEach((item, i) => {
+        // 🔴 自動分類記憶：如果這個品項以前被使用者修正過，自動套用！
+        if (categoryMemory[item.chineseName]) {
+            item.mainCategory = categoryMemory[item.chineseName];
+        }
+
         const div = document.createElement('div'); 
         div.className = 'preview-item';
-        div.style.borderLeft = `4px solid ${item.displayColor || '#1a73e8'}`;
-        div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${i}].chineseName=this.value"><div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${i}, this.value)"><select onchange="pendingAiRecords[${i}].mainCategory=this.value"><option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option><option value="住" ${item.mainCategory==='住'?'selected':''}>住</option><option value="行" ${item.mainCategory==='行'?'selected':''}>行</option><option value="育" ${item.mainCategory==='育'?'selected':''}>育</option><option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option><option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option></select></div>`;
+        
+        // 🔴 預留信心分數判斷：未來若 GAS 傳送 confidence < 0.7，邊框變紅並給予提示
+        const isLowConf = item.confidence !== undefined && item.confidence < 0.7;
+        div.style.borderLeft = isLowConf ? '4px solid #ff4d4f' : `4px solid ${item.displayColor || '#1a73e8'}`;
+        const warnHtml = isLowConf ? '<span style="color:#ff4d4f; font-size:12px; margin-left:5px;">⚠️ 需確認</span>' : '';
+
+        div.innerHTML = `<input type="text" value="${item.chineseName}" onchange="pendingAiRecords[${i}].chineseName=this.value">${warnHtml}<div style="display:flex; gap:5px;"><input type="number" value="${item.localAmount}" onchange="updateAiItemAmt(${i}, this.value)"><select onchange="pendingAiRecords[${i}].mainCategory=this.value"><option value="食" ${item.mainCategory==='食'?'selected':''}>食</option><option value="衣" ${item.mainCategory==='衣'?'selected':''}>衣</option><option value="住" ${item.mainCategory==='住'?'selected':''}>住</option><option value="行" ${item.mainCategory==='行'?'selected':''}>行</option><option value="育" ${item.mainCategory==='育'?'selected':''}>育</option><option value="樂" ${item.mainCategory==='樂'?'selected':''}>樂</option><option value="其他" ${item.mainCategory==='其他'?'selected':''}>其他</option></select></div>`;
         container.appendChild(div);
       });
       calculateAiTotal();
@@ -603,12 +611,17 @@
       const cardName = document.getElementById('aiCardName').value.trim();
       const paymentObj = payType === 'cash' ? { type: 'cash', name: '現金' } : { type: 'card', name: cardName || '未指定' };
       
+      // 🔴 儲存使用者的分類記憶
+      pendingAiRecords.forEach(r => { categoryMemory[r.chineseName] = r.mainCategory; });
+      localStorage.setItem(CAT_LEARN_KEY, JSON.stringify(categoryMemory));
+
       btn.disabled = true; 
       let toSave = [...pendingAiRecords];
       try {
         if (Math.abs(mTotal - calculatedTotal) > 0.01) {
           const diff = (mTotal - calculatedTotal).toFixed(2);
-          toSave.push({ chineseName: `⚠️ 差額補正`, storeName: "系統", localAmount: Number(diff), mainCategory: "其他", receiptDate: pendingAiRecords[0]?.receiptDate });
+          const mainStore = pendingAiRecords.length > 0 ? pendingAiRecords[0].storeName : "未辨識店家";
+          toSave.push({ chineseName: `⚠️ 差額補正`, storeName: mainStore, localAmount: Number(diff), mainCategory: "其他", receiptDate: pendingAiRecords[0]?.receiptDate });
         }
         const records = toSave.map(r => ({ datetime: normalizeDateStr(r.receiptDate), item: r.chineseName, store: r.storeName || "AI", amount: r.localAmount, currency, category: r.mainCategory || "其他", rate, trip, source: "AI", payment: paymentObj }));
         const data = await apiPost({ action: "add_records", records });
@@ -642,8 +655,13 @@
       
       const date = `${document.getElementById('mDate').value}T${document.getElementById('mTime').value}`;
       const trip = getSafeTripName(); 
-      const records = [{ datetime: normalizeDateStr(date), item, store: document.getElementById('mStore').value.trim() || "手動", amount: amt, currency: document.getElementById('countryMode').value, category: document.getElementById('mCategory').value, rate: Number(document.getElementById('currentRate').value)||1, trip: trip, source: "Manual", payment: paymentObj }];
+      const category = document.getElementById('mCategory').value;
+      const records = [{ datetime: normalizeDateStr(date), item, store: document.getElementById('mStore').value.trim() || "手動", amount: amt, currency: document.getElementById('countryMode').value, category: category, rate: Number(document.getElementById('currentRate').value)||1, trip: trip, source: "Manual", payment: paymentObj }];
       
+      // 🔴 手動記帳同樣儲存記憶
+      categoryMemory[item] = category;
+      localStorage.setItem(CAT_LEARN_KEY, JSON.stringify(categoryMemory));
+
       btn.disabled = true;
       try {
         const data = await apiPost({ action: "add_records", records });
@@ -665,7 +683,7 @@
     }
 
     async function syncOfflineQueue() {
-      if (offlineQueue.length === 0 || !navigator.onLine) return; // 沒網就不試了
+      if (offlineQueue.length === 0 || !navigator.onLine) return; 
       try {
         const res = await apiPost({ action: "add_records", records: offlineQueue });
         if (res.success) { offlineQueue = []; saveOfflineQueue(); }
@@ -694,7 +712,7 @@
       if (force && refreshBtn) {
          refreshBtn.style.transform = 'rotate(360deg)';
          refreshBtn.style.transition = 'transform 0.5s';
-         totalSpan.classList.add('skeleton'); // 🔴 Skeleton 載入效果
+         totalSpan.classList.add('skeleton'); 
          resetInsightBtn();
       }
 
@@ -702,7 +720,7 @@
         const data = await apiPost({ action: "get_stats", range: document.getElementById('dateRange').value, trip, startDate: document.getElementById('startDate').value, endDate: document.getElementById('endDate').value, force: force });
         if (data.success) { 
           currentStatsData = data; 
-          totalSpan.classList.remove('skeleton'); // 關閉 Skeleton
+          totalSpan.classList.remove('skeleton'); 
           totalSpan.innerText = `NT$ ${formatMoney(data.total)}`; 
           renderChart(data.categories); 
           
@@ -774,7 +792,6 @@
       const chartData = total === 0 ? [1] : data;
       const chartBg = total === 0 ? ['#f0f0f0'] : labels.map(l => CHART_COLORS[l] || '#ccc');
 
-      // 🔴 效能優化：用 update() 取代 destroy()
       if (chartInstance) {
          chartInstance.data.labels = chartLabels;
          chartInstance.data.datasets[0].data = chartData;
@@ -831,7 +848,7 @@
       fetchLiveRate(); 
     }
 
-    // 🔴 容錯優化：加入 Fallback 處理
+    // 🔴 匯率 Fallback (防呆警示)
     async function fetchLiveRate() { 
       const curr = document.getElementById('countryMode').value; 
       if (curr === "TWD") return;
@@ -845,8 +862,8 @@
            throw new Error();
         }
       } catch (e) {
-         // 靜默處理，或改用 alert 提示
-         console.warn("⚠️ 匯率取得失敗，將使用預設匯率。");
+         // 彈出提示告知使用者切換預設匯率
+         alert("⚠️ 匯率即時更新失敗，旅咖已套用預設匯率，你也可以手動微調喔！");
       } 
     }
     
@@ -858,13 +875,13 @@
       document.getElementById('mTime').value = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0'); 
       handleCountryChange(); 
       renderFavCards(); 
-      renderTripList(); // 渲染歷史旅程
+      renderTripList(); 
     }
 
     window.onload = () => { 
       loadUser(); 
       setDefaultTime(); 
-      if(!navigator.onLine) document.getElementById('offlineBanner').style.display = 'block'; // 檢查初始網路
+      if(!navigator.onLine) document.getElementById('offlineBanner').style.display = 'block'; 
     };
   </script>
 </body>
